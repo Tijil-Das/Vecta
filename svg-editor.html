@@ -258,10 +258,10 @@ input{font-family:inherit; color:inherit;}
   background-image:
     linear-gradient(var(--mp-grid-line,rgba(255,255,255,0.07)) 1px, transparent 1px),
     linear-gradient(90deg, var(--mp-grid-line,rgba(255,255,255,0.07)) 1px, transparent 1px);
-  background-size:16px 16px;
+  background-size:10px 10px;
 }
 .mp-canvas{
-  width:260px; height:260px; border-radius:4px;
+  width:290px; height:290px; border-radius:4px;
   box-shadow:0 2px 16px rgba(0,0,0,0.28); overflow:hidden;
   background:#fff; flex:0 0 auto;
 }
@@ -723,11 +723,14 @@ select.input{ font-family:var(--sans); }
             <!-- ===== MINI TOPBAR ===== -->
             <div class="mp-topbar" style="background:var(--mp-bg1);border-color:var(--mp-line);padding:0 8px;gap:6px;">
               <!-- Brand (Logo + Vecta) -->
-              <div style="display:flex;align-items:center;gap:4px;margin-right:2px;">
-                <div style="width:12px;height:12px;border-radius:2px;border:1.5px solid var(--mp-accent);position:relative;">
-                  <div style="position:absolute;top:1px;left:1px;width:3px;height:3px;background:var(--mp-accent);border-radius:50%;"></div>
-                </div>
-                <div style="width:24px;height:5px;border-radius:2.5px;background:var(--mp-text0);opacity:0.85;"></div>
+              <div style="display:flex;align-items:center;gap:4px;margin-right:2px;color:var(--mp-text0);font-weight:700;font-size:11.5px;letter-spacing:-0.2px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 18L12 4L20 18" stroke="var(--mp-accent)" stroke-width="2.5" stroke-linejoin="round" fill="none"/>
+                  <circle cx="12" cy="4" r="2" fill="var(--mp-accent)"/>
+                  <circle cx="4" cy="18" r="2" fill="var(--mp-accent)"/>
+                  <circle cx="20" cy="18" r="2" fill="var(--mp-accent)"/>
+                </svg>
+                Vecta
               </div>
               <!-- Doc name -->
               <div style="width:45px;height:14px;border-radius:3px;background:var(--mp-bg0);"></div>
@@ -765,10 +768,10 @@ select.input{ font-family:var(--sans); }
             <!-- ===== MINI BODY ===== -->
             <div class="mp-body">
               <!-- Tool Rail -->
-              <div class="mp-rail" style="background:var(--mp-bg1);border-color:var(--mp-line);width:20px;flex:0 0 20px;padding:3px 2px;gap:2px;align-items:center;">
-                <!-- Select (active) — accent-dim bg + accent-colored icon, matching .tool.active -->
-                <div style="width:13px;height:13px;display:flex;align-items:center;justify-content:center;border-radius:2px;background:var(--mp-accent-dim);flex:0 0 13px;">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M5 3L19 12L12 13L9 20L5 3Z" stroke="var(--mp-accent)" stroke-width="1.8" stroke-linejoin="round" fill="var(--mp-accent)" fill-opacity="0.15"/></svg>
+              <div class="mp-rail" style="background:var(--mp-bg1);border-color:var(--mp-line);width:22px;flex:0 0 22px;padding:3px 0;gap:2px;align-items:center;display:flex;flex-direction:column;overflow:hidden;">
+                <!-- Select (active) -->
+                <div style="width:14px;height:14px;display:flex;align-items:center;justify-content:center;border-radius:3px;background:var(--mp-accent-dim);flex:0 0 14px;">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 3L19 12L12 13L9 20L5 3Z" stroke="var(--mp-accent)" stroke-width="1.8" stroke-linejoin="round" fill="var(--mp-accent)" fill-opacity="0.15"/></svg>
                 </div>
                 <!-- Rect -->
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><rect x="4" y="6" width="16" height="12" rx="1.5" stroke="var(--mp-text1)" stroke-width="2"/></svg>
@@ -778,12 +781,22 @@ select.input{ font-family:var(--sans); }
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="12" cy="12" r="7.5" stroke="var(--mp-text1)" stroke-width="2"/></svg>
                 <!-- Line -->
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M5 19L19 5" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
+                <!-- Polygon -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M12 3L21 9.5L17.5 20H6.5L3 9.5L12 3Z" stroke="var(--mp-text1)" stroke-width="2" stroke-linejoin="round"/></svg>
                 <!-- Pen -->
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 17L10 8L14 14L20 5" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="17" r="1.5" fill="var(--mp-text1)"/><circle cx="20" cy="5" r="1.5" fill="var(--mp-text1)"/></svg>
+                <!-- Freehand -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 18C7 10 9 6 12 6C15 6 13 14 16 14C18 14 19 11 20 9" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
+                <!-- Text -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M6 5H18M12 5V19M9 19H15" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
                 <!-- sep -->
-                <div style="height:1px;width:11px;background:var(--mp-line);margin:1px 0;opacity:0.6;flex:0 0 1px;"></div>
-                <!-- Zoom -->
+                <div style="height:1px;width:12px;background:var(--mp-line);margin:1px 0;opacity:0.6;flex:0 0 1px;"></div>
+                <!-- Zoom in -->
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="10.5" cy="10.5" r="6.5" stroke="var(--mp-text1)" stroke-width="2"/><path d="M20 20L15 15M10.5 8V13M8 10.5H13" stroke="var(--mp-text1)" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <!-- Zoom out -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="10.5" cy="10.5" r="6.5" stroke="var(--mp-text1)" stroke-width="2"/><path d="M20 20L15 15M8 10.5H13" stroke="var(--mp-text1)" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <!-- Zoom fit -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 9V4H9M20 9V4H15M4 15V20H9M20 15V20H15" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
               <div class="mp-canvas-wrap">
                 <div class="mp-canvas" style="background:#ffffff;">
@@ -4663,6 +4676,7 @@ $('#custom-theme-overlay').addEventListener('click',e=>{ if(e.target===$('#custo
 if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
   const name=$('#ctm-name').value.trim();
   if(!name){ 
+    alert('Please enter a theme name before saving!');
     const inp = $('#ctm-name');
     inp.value = '';
     inp.focus(); 
