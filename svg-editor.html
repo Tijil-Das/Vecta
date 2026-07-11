@@ -125,7 +125,6 @@ input{font-family:inherit; color:inherit;}
 }
 .theme-check{ margin-left:auto; opacity:0; color:var(--accent); flex:0 0 14px; }
 .theme-option.active .theme-check{ opacity:1; }
-.theme-option.active{ background:var(--accent-dim); }
 
 /* ===== CUSTOM THEME BUTTON AT BOTTOM ===== */
 .theme-divider{
@@ -169,7 +168,7 @@ input{font-family:inherit; color:inherit;}
 #custom-theme-overlay.open{ display:flex; }
 #custom-theme-modal{
   background:var(--bg-1); border:1px solid var(--line); border-radius:14px;
-  padding:0; width:720px; height:480px; max-width:97vw; max-height:92vh;
+  padding:0; width:720px; height:390px; max-width:97vw; max-height:92vh;
   box-shadow:0 30px 80px rgba(0,0,0,0.6);
   display:flex; flex-direction:column; overflow:hidden;
 }
@@ -200,6 +199,14 @@ input{font-family:inherit; color:inherit;}
   transition:border-color .15s;
 }
 .ctm-field input[type="text"]:focus{ border-color:var(--accent); }
+@keyframes ctm-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.ctm-shake {
+  animation: ctm-shake 0.3s ease-in-out;
+}
 
 /* Custom color picker widget */
 .ctm-color-pick{
@@ -227,7 +234,7 @@ input{font-family:inherit; color:inherit;}
 
 /* Right: live preview */
 .ctm-preview-wrap{
-  flex:1; min-width:0; padding:16px 20px; display:flex; flex-direction:column;
+  flex:1; min-width:0; padding:0; display:flex; flex-direction:column;
   background:var(--mp-backdrop, var(--bg-0));
   overflow:hidden;
   transition: background 0.3s;
@@ -235,10 +242,9 @@ input{font-family:inherit; color:inherit;}
 .ctm-preview-label{ font-size:10.5px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; flex:0 0 auto; }
 #ctm-preview{
   flex:1; min-height:0;
-  border-radius:8px; overflow:hidden;
-  border:1px solid var(--line-soft);
+  border-radius:0; overflow:hidden;
+  border:none;
   display:flex; flex-direction:column;
-  box-shadow:0 4px 20px rgba(0,0,0,0.3);
 }
 /* Mini UI inside preview — colors are set via inline vars on the element */
 .mp-topbar{
@@ -262,7 +268,7 @@ input{font-family:inherit; color:inherit;}
   background-size:10px 10px;
 }
 .mp-canvas{
-  width:240px; height:240px; border-radius:4px;
+  width:210px; height:210px; border-radius:4px;
   box-shadow:0 2px 16px rgba(0,0,0,0.28); overflow:hidden;
   background:#fff; flex:0 0 auto;
 }
@@ -699,7 +705,6 @@ select.input{ font-family:var(--sans); }
           <div class="ctm-field">
             <label>Theme name</label>
             <input type="text" id="ctm-name" placeholder="My theme" maxlength="28">
-            <div id="ctm-name-error" style="color:var(--danger); font-size:11px; margin-top:4px; display:none; align-items:center; gap:4px; font-weight:500;">⚠️ Theme name is required!</div>
           </div>
           <div class="ctm-field">
             <label>Accent colour</label>
@@ -719,7 +724,6 @@ select.input{ font-family:var(--sans); }
           </div>
         </div>
         <div class="ctm-preview-wrap">
-          <div class="ctm-preview-label">Live preview</div>
           <div id="ctm-preview">
 
             <!-- ===== MINI TOPBAR ===== -->
@@ -803,10 +807,10 @@ select.input{ font-family:var(--sans); }
               <div class="mp-canvas-wrap">
                 <div class="mp-canvas" style="background:#ffffff;">
                   <svg viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="10" y="12" width="48" height="36" rx="3" fill="none" stroke-width="1.5" style="stroke:var(--mp-accent);"/>
-                    <ellipse cx="82" cy="38" rx="20" ry="15" style="fill:var(--mp-accent-dim);stroke:var(--mp-accent);" stroke-width="1.5"/>
-                    <line x1="10" y1="70" x2="100" y2="85" stroke-width="1.5" style="stroke:var(--mp-text1);opacity:0.6;"/>
-                    <rect x="10" y="12" width="48" height="36" rx="3" fill="none" stroke-width="0.8" stroke-dasharray="2.5,2" style="stroke:var(--mp-accent);opacity:0.5"/>
+                    <rect x="10" y="12" width="48" height="36" rx="3" fill="none" stroke-width="1.5" style="stroke:#222222;"/>
+                    <ellipse cx="82" cy="38" rx="20" ry="15" style="fill:#f1f3f5;stroke:#222222;" stroke-width="1.5"/>
+                    <line x1="10" y1="70" x2="100" y2="85" stroke-width="1.5" style="stroke:#495057;"/>
+                    <rect x="10" y="12" width="48" height="36" rx="3" fill="none" stroke-width="0.8" stroke-dasharray="2.5,2" style="stroke:#0066ff;opacity:0.8"/>
                   </svg>
                 </div>
               </div>
@@ -815,6 +819,7 @@ select.input{ font-family:var(--sans); }
         </div>
       </div>
       <div class="ctm-footer">
+        <div id="ctm-name-error" style="color:var(--danger); font-size:11.5px; display:none; align-items:center; gap:5px; font-weight:600; margin-right:auto;">⚠️ Theme name is required!</div>
         <button class="btn" id="ctm-cancel">Cancel</button>
         <button class="btn primary" id="ctm-save">Apply &amp; Save</button>
       </div>
@@ -4621,7 +4626,9 @@ function openCustomThemeModal(editId){
   ctmEditingId=editId||null;
   const err = $('#ctm-name-error');
   if(err) err.style.display = 'none';
-  $('#ctm-name').style.borderColor = '';
+  const inp = $('#ctm-name');
+  inp.style.borderColor = '';
+  inp.classList.remove('ctm-shake');
   $('#custom-theme-overlay').classList.add('open');
   $('#theme-menu').classList.remove('open');
   if(editId){
@@ -4679,7 +4686,9 @@ $('#ctm-accent-input').addEventListener('input',e=>{
 $('#ctm-name').addEventListener('input', () => {
   const err = $('#ctm-name-error');
   if(err) err.style.display = 'none';
-  $('#ctm-name').style.borderColor = '';
+  const inp = $('#ctm-name');
+  inp.style.borderColor = '';
+  inp.classList.remove('ctm-shake');
 });
 // Clicking anywhere on the swatch reliably opens the native color picker
 ctmColorDisplay.addEventListener('click', ()=>{ $('#ctm-accent-input').click(); });
@@ -4695,6 +4704,9 @@ if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
     inp.value = '';
     inp.focus(); 
     inp.style.borderColor='var(--danger)'; 
+    inp.classList.remove('ctm-shake');
+    void inp.offsetWidth; // trigger reflow to restart animation
+    inp.classList.add('ctm-shake');
     return; 
   }
   const accent=$('#ctm-accent-input').value;
