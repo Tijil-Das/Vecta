@@ -2166,11 +2166,22 @@ function drawSelBoxSVG(o){
   const outline = selectionOutlineFor(o, false);
   if(outline){
     // Geometry-traced outlines already use absolute SVG coordinates matching the
-    // rendered shape exactly — no extra rotation needed; they are correct as-is.
+    // rendered shape exactly. We just need to apply its rotation!
     outline.setAttribute('fill','none');
     outline.setAttribute('stroke', color);
     outline.setAttribute('stroke-width', 1.5/state.zoom);
     if(o.locked) outline.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
+    if(o.rot) {
+      if (o.type === 'path' && o.rawPath && !o.points) {
+        outline.setAttribute('transform', `translate(${o.x} ${o.y}) rotate(${o.rot} ${o.w/2} ${o.h/2})`);
+      } else {
+        outline.setAttribute('transform', `rotate(${o.rot} ${cx} ${cy})`);
+      }
+    } else {
+      if (o.type === 'path' && o.rawPath && !o.points) {
+        outline.setAttribute('transform', `translate(${o.x} ${o.y})`);
+      }
+    }
     overlay.appendChild(outline);
   } else {
     // Bbox-based shapes (rect, ellipse, text, image, group) — wrap in a rotated
@@ -2229,7 +2240,7 @@ function selectionOutlineFor(o, isHover=false){
       break;
     }
     case 'path':
-      el.setAttribute('d', pathDataFromPoints(o));
+      el.setAttribute('d', (o.rawPath && !o.points) ? o.rawPath : pathDataFromPoints(o));
       break;
   }
   return el;
@@ -3595,8 +3606,8 @@ function onCanvasMouseMove(e){
     glowG.innerHTML = '';
     hits.forEach(o => {
       let shape = selectionOutlineFor(o, true);
+      const cx = o.x+o.w/2, cy = o.y+o.h/2;
       if(!shape) {
-        const cx = o.x+o.w/2, cy = o.y+o.h/2;
         const g = document.createElementNS(SVG_NS,'g');
         if(o.rot) g.setAttribute('transform', `rotate(${o.rot} ${cx} ${cy})`);
         shape = document.createElementNS(SVG_NS, 'rect');
@@ -3604,6 +3615,18 @@ function onCanvasMouseMove(e){
         shape.setAttribute('width', o.w); shape.setAttribute('height', o.h);
         g.appendChild(shape);
         shape = g;
+      } else {
+        if(o.rot) {
+          if (o.type === 'path' && o.rawPath && !o.points) {
+            shape.setAttribute('transform', `translate(${o.x} ${o.y}) rotate(${o.rot} ${o.w/2} ${o.h/2})`);
+          } else {
+            shape.setAttribute('transform', `rotate(${o.rot} ${cx} ${cy})`);
+          }
+        } else {
+          if (o.type === 'path' && o.rawPath && !o.points) {
+            shape.setAttribute('transform', `translate(${o.x} ${o.y})`);
+          }
+        }
       }
       shape.setAttribute('fill', 'rgba(79,178,232,0.25)');
       shape.setAttribute('stroke', '#4fb2e8');
@@ -3728,6 +3751,7 @@ function onCanvasMouseUp(e){
     // final cleanup on mouseUp — nothing extra needed, rotate-multi is fully handled in mousemove
     drag = null;
     clearRotationReadout();
+    renderSelection();
     pushHistory();
     return;
   }
@@ -3847,10 +3871,19 @@ function updateHoverOutline(e){
     shape.setAttribute('id','hover-outline');
     shape.setAttribute('fill','none');
     shape.setAttribute('stroke','#4fb2e8');
-    shape.setAttribute('stroke-width', 1.5/state.zoom);
-    shape.setAttribute('vector-effect','non-scaling-stroke');
+    shape.setAttribute('stroke-width', 2/state.zoom);
     shape.style.pointerEvents = 'none';
-    shape.style.shapeRendering = 'geometricPrecision';
+    if(o.rot) {
+      if (o.type === 'path' && o.rawPath && !o.points) {
+        shape.setAttribute('transform', `translate(${o.x} ${o.y}) rotate(${o.rot} ${o.w/2} ${o.h/2})`);
+      } else {
+        shape.setAttribute('transform', `rotate(${o.rot} ${cx} ${cy})`);
+      }
+    } else {
+      if (o.type === 'path' && o.rawPath && !o.points) {
+        shape.setAttribute('transform', `translate(${o.x} ${o.y})`);
+      }
+    }
     overlay.appendChild(shape);
   }
 }
