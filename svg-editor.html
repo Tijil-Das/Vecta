@@ -224,7 +224,28 @@ input{font-family:inherit; color:inherit;}
 }
 .ctm-hex-display{ font-size:13px; font-family:var(--mono); color:var(--text-0); }
 
+/* Grid colour two-row picker */
+.ctm-grid-rows{ display:flex; flex-direction:column; gap:6px; }
+.ctm-grid-row{
+  display:flex; align-items:center; gap:8px;
+  cursor:pointer;
+}
+.ctm-grid-row-icon{ font-size:13px; line-height:1; flex:0 0 16px; text-align:center; }
+.ctm-grid-row-swatch{
+  width:28px; height:28px; border-radius:6px;
+  border:2px solid var(--line); flex:0 0 28px;
+  position:relative; overflow:hidden; cursor:pointer;
+  transition:border-color .15s;
+}
+.ctm-grid-row-swatch:hover{ border-color:var(--accent); }
+.ctm-grid-row-swatch input[type="color"]{
+  position:absolute; inset:0; opacity:0; cursor:pointer;
+  width:100%; height:100%; border:none; padding:0;
+}
+.ctm-grid-row-hex{ font-size:12px; font-family:var(--mono); color:var(--text-0); }
+
 .ctm-base-toggle{ display:flex; gap:6px; }
+
 .ctm-base-btn{
   flex:1; padding:7px 0; background:var(--bg-2); border:1px solid var(--line);
   border-radius:6px; cursor:pointer; color:var(--text-1); font-size:11.5px;
@@ -703,16 +724,29 @@ select.input{ font-family:var(--sans); }
       <div class="ctm-body">
         <div class="ctm-controls">
           <div class="ctm-field">
-            <label>Theme name</label>
-            <input type="text" id="ctm-name" placeholder="My theme" maxlength="28">
+            <label>Preview mode</label>
+            <div class="ctm-base-toggle">
+              <button class="ctm-base-btn active" data-base="dark">Dark</button>
+              <button class="ctm-base-btn" data-base="light">Light</button>
+            </div>
           </div>
           <div class="ctm-field">
             <label>Grid colour</label>
-            <div class="ctm-color-pick" id="ctm-grid-pick-wrap">
-              <div class="ctm-swatch-pick" id="ctm-grid-display" style="background:#e0e0e0">
-                <input type="color" id="ctm-grid-input" value="#e0e0e0">
+            <div class="ctm-grid-rows">
+              <div class="ctm-grid-row" id="ctm-grid-dark-wrap" title="Dark mode grid colour">
+                <span class="ctm-grid-row-icon">🌙</span>
+                <div class="ctm-grid-row-swatch" id="ctm-grid-dark-swatch" style="background:#23252a">
+                  <input type="color" id="ctm-grid-dark-input" value="#23252a">
+                </div>
+                <span class="ctm-grid-row-hex" id="ctm-grid-dark-hex">#23252a</span>
               </div>
-              <span class="ctm-hex-display" id="ctm-grid-hex">#e0e0e0</span>
+              <div class="ctm-grid-row" id="ctm-grid-light-wrap" title="Light mode grid colour">
+                <span class="ctm-grid-row-icon">☀️</span>
+                <div class="ctm-grid-row-swatch" id="ctm-grid-light-swatch" style="background:#d2d5d8">
+                  <input type="color" id="ctm-grid-light-input" value="#d2d5d8">
+                </div>
+                <span class="ctm-grid-row-hex" id="ctm-grid-light-hex">#d2d5d8</span>
+              </div>
             </div>
           </div>
           <div class="ctm-field">
@@ -725,11 +759,8 @@ select.input{ font-family:var(--sans); }
             </div>
           </div>
           <div class="ctm-field">
-            <label>Preview mode</label>
-            <div class="ctm-base-toggle">
-              <button class="ctm-base-btn active" data-base="dark">Dark</button>
-              <button class="ctm-base-btn" data-base="light">Light</button>
-            </div>
+            <label>Theme name</label>
+            <input type="text" id="ctm-name" placeholder="My theme" maxlength="28">
           </div>
         </div>
         <div class="ctm-preview-wrap">
@@ -4584,6 +4615,8 @@ function deleteCustomTheme(id){
 let _currentMode = 'dark';
 let _currentAccentHex = '#4fb2e8';
 let _currentGridHex = null;
+let _currentGridDark = null;
+let _currentGridLight = null;
 
 function getCurrentMode(){
   return _currentMode;
@@ -4594,18 +4627,23 @@ function getCurrentAccent(){
 
 function applyMode(mode){
   _currentMode = mode;
+  _currentGridHex = (mode === 'light') ? _currentGridLight : _currentGridDark;
   applyPalette(_currentAccentHex, mode, _currentGridHex);
   try{ localStorage.setItem('vecta-mode', mode); }catch(e){}
 }
-function applyAccent(accentHexOrId, customGrid){
+function applyAccent(accentHexOrId, gridLineDark, gridLineLight){
   // Support both predefined IDs and raw hex values
   const predef = {
     'default':'#4fb2e8','forest':'#4fd68c','ocean':'#329eea','rose':'#e8558f','beige':'#c98840'
   };
   const hex = predef[accentHexOrId] || (typeof accentHexOrId==='string' && accentHexOrId.startsWith('#') ? accentHexOrId : '#4fb2e8');
   _currentAccentHex = hex;
-  _currentGridHex = customGrid || null;
-  applyPalette(hex, _currentMode, _currentGridHex);
+  _currentGridDark = gridLineDark || null;
+  _currentGridLight = gridLineLight || null;
+  // pick the right grid colour for the current mode
+  const gridHex = (_currentMode === 'light') ? _currentGridLight : _currentGridDark;
+  _currentGridHex = gridHex;
+  applyPalette(hex, _currentMode, gridHex);
   try{ localStorage.setItem('vecta-accent-hex', hex); }catch(e){}
 }
 
@@ -4613,7 +4651,7 @@ function applyAccent(accentHexOrId, customGrid){
 function applyTheme(name){
   if(name && name.startsWith('custom-')){
     const t = customThemes.find(x=>'custom-'+x.id===name);
-    if(t) applyAccent(t.accent, t.gridLine);
+    if(t) applyAccent(t.accent, t.gridLineDark, t.gridLineLight);
     try{ localStorage.setItem('vecta-theme-full', name); }catch(e){}
   }
   if(typeof drawRulers==='function') requestAnimationFrame(()=>{ drawRulers(); renderGuides(); });
@@ -4649,10 +4687,12 @@ function openCustomThemeModal(editId){
     $('#ctm-accent-input').value=t.accent;
     ctmColorDisplay.style.background=t.accent;
     $('#ctm-hex').textContent=t.accent;
-    const gridColor = t.gridLine || (ctmBase==='dark' ? '#23252a' : '#d2d5d8');
-    $('#ctm-grid-input').value = gridColor;
-    $('#ctm-grid-display').style.background = gridColor;
-    $('#ctm-grid-hex').textContent = gridColor;
+    const darkGrid = t.gridLineDark || '#23252a';
+    const lightGrid = t.gridLineLight || '#d2d5d8';
+    $('#ctm-grid-dark-input').value = darkGrid;
+    $('#ctm-grid-light-input').value = lightGrid;
+    setGridSwatch('ctm-grid-dark-swatch','ctm-grid-dark-hex', darkGrid);
+    setGridSwatch('ctm-grid-light-swatch','ctm-grid-light-hex', lightGrid);
     // Preview uses current global mode
     ctmBase=_currentMode;
     updateCtmBaseButtons();
@@ -4663,10 +4703,10 @@ function openCustomThemeModal(editId){
     $('#ctm-accent-input').value=accent;
     ctmColorDisplay.style.background=accent;
     $('#ctm-hex').textContent=accent;
-    const gridColor = (ctmBase==='dark' ? '#23252a' : '#d2d5d8');
-    $('#ctm-grid-input').value = gridColor;
-    $('#ctm-grid-display').style.background = gridColor;
-    $('#ctm-grid-hex').textContent = gridColor;
+    $('#ctm-grid-dark-input').value = '#23252a';
+    $('#ctm-grid-light-input').value = '#d2d5d8';
+    setGridSwatch('ctm-grid-dark-swatch','ctm-grid-dark-hex','#23252a');
+    setGridSwatch('ctm-grid-light-swatch','ctm-grid-light-hex','#d2d5d8');
     ctmBase=_currentMode;
     updateCtmBaseButtons();
   }
@@ -4681,7 +4721,7 @@ function updateCtmBaseButtons(){
 function updateCtmPreview(){
   const accent=$('#ctm-accent-input').value;
   if(!accent || !accent.startsWith('#')) return;
-  const customGrid = $('#ctm-grid-input').value;
+  const customGrid = ctmBase==='dark' ? $('#ctm-grid-dark-input').value : $('#ctm-grid-light-input').value;
   const pal=generatePaletteFromAccent(accent, ctmBase, customGrid);
   const wrap=$('.ctm-preview-wrap');
   if(!wrap) return;
@@ -4694,15 +4734,28 @@ function updateCtmPreview(){
     `--mp-cvoid:${pal.canvasVoid};--mp-grid-line:${gridLine};--mp-backdrop:${pal.backdrop};`;
 }
 
+// Helper: set a grid swatch background + auto-contrast text
+function setGridSwatch(swatchId, hexId, hex){
+  const swatch = $('#'+swatchId);
+  const hexEl = $('#'+hexId);
+  if(swatch) swatch.style.background = hex;
+  // Compute luminance — not used for hex text (it's on panel bg) but kept for future use
+  if(hexEl) hexEl.textContent = hex;
+}
+
 $$('.ctm-base-btn').forEach(b=>{
   b.addEventListener('click',()=>{ ctmBase=b.dataset.base; updateCtmBaseButtons(); updateCtmPreview(); });
 });
-$('#ctm-grid-input').addEventListener('input', e=>{
-  $('#ctm-grid-display').style.background=e.target.value;
-  $('#ctm-grid-hex').textContent=e.target.value;
+$('#ctm-grid-dark-input').addEventListener('input', e=>{
+  setGridSwatch('ctm-grid-dark-swatch','ctm-grid-dark-hex',e.target.value);
   updateCtmPreview();
 });
-$('#ctm-grid-display').addEventListener('click', ()=>{ $('#ctm-grid-input').click(); });
+$('#ctm-grid-light-input').addEventListener('input', e=>{
+  setGridSwatch('ctm-grid-light-swatch','ctm-grid-light-hex',e.target.value);
+  updateCtmPreview();
+});
+$('#ctm-grid-dark-wrap').addEventListener('click', ()=>{ $('#ctm-grid-dark-input').click(); });
+$('#ctm-grid-light-wrap').addEventListener('click', ()=>{ $('#ctm-grid-light-input').click(); });
 $('#ctm-accent-input').addEventListener('input',e=>{
   ctmColorDisplay.style.background=e.target.value;
   $('#ctm-hex').textContent=e.target.value;
@@ -4736,27 +4789,28 @@ if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
     return; 
   }
   const accent=$('#ctm-accent-input').value;
-  const gridLine = $('#ctm-grid-input').value;
+  const gridLineDark = $('#ctm-grid-dark-input').value;
+  const gridLineLight = $('#ctm-grid-light-input').value;
   if(ctmEditingId){
     const t=customThemes.find(x=>x.id===ctmEditingId);
-    if(t){ t.name=name; t.accent=accent; t.gridLine=gridLine; }
+    if(t){ t.name=name; t.accent=accent; t.gridLineDark=gridLineDark; t.gridLineLight=gridLineLight; }
   } else {
     const id='c'+Date.now();
-    customThemes.push({id,name,accent,gridLine});
+    customThemes.push({id,name,accent,gridLineDark,gridLineLight});
   }
   saveCustomThemes();
   renderThemeMenu();
   const applyId=ctmEditingId||(customThemes[customThemes.length-1].id);
   // apply accent (dark/light is whatever is globally set)
   const saved=customThemes.find(x=>x.id===applyId);
-  if(saved) applyAccent(saved.accent);
+  if(saved) applyAccent(saved.accent, saved.gridLineDark, saved.gridLineLight);
   $('#custom-theme-overlay').classList.remove('open');
 });
 if($('#btn-custom-theme')) $('#btn-custom-theme').addEventListener('click',e=>{ e.stopPropagation(); openCustomThemeModal(null); });
 
 function initTheme(){
   loadCustomThemes();
-  let savedMode='dark', savedAccentHex='#4fd68c', savedGridHex=null; // default: Forest green
+  let savedMode='dark', savedAccentHex='#4fd68c', savedGridDark=null, savedGridLight=null; // default: Forest green
   try{
     savedMode = localStorage.getItem('vecta-mode')||'dark';
     // Try new hex key first, fall back to old accent ID
@@ -4768,17 +4822,19 @@ function initTheme(){
       const predef = {'default':'#4fb2e8','forest':'#4fd68c','ocean':'#329eea','rose':'#e8558f','beige':'#c98840'};
       savedAccentHex = predef[savedId]||'#4fb2e8';
     }
-    // If a custom theme was last active, restore its accent
+    // If a custom theme was last active, restore its accent and grid colours
     const savedFull = localStorage.getItem('vecta-theme-full');
     if(savedFull && savedFull.startsWith('custom-')){
       const ct = customThemes.find(x=>'custom-'+x.id===savedFull);
-      if(ct) { savedAccentHex = ct.accent; savedGridHex = ct.gridLine; }
+      if(ct) { savedAccentHex = ct.accent; savedGridDark = ct.gridLineDark; savedGridLight = ct.gridLineLight; }
     }
   }catch(e){}
   _currentMode = savedMode;
   _currentAccentHex = savedAccentHex;
-  _currentGridHex = savedGridHex;
-  applyPalette(savedAccentHex, savedMode, savedGridHex);
+  _currentGridDark = savedGridDark;
+  _currentGridLight = savedGridLight;
+  _currentGridHex = (savedMode === 'light') ? savedGridLight : savedGridDark;
+  applyPalette(savedAccentHex, savedMode, _currentGridHex);
   renderThemeMenu();
 }
 
