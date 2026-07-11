@@ -169,7 +169,7 @@ input{font-family:inherit; color:inherit;}
 #custom-theme-overlay.open{ display:flex; }
 #custom-theme-modal{
   background:var(--bg-1); border:1px solid var(--line); border-radius:14px;
-  padding:0; width:720px; max-width:97vw; max-height:92vh;
+  padding:0; width:720px; height:480px; max-width:97vw; max-height:92vh;
   box-shadow:0 30px 80px rgba(0,0,0,0.6);
   display:flex; flex-direction:column; overflow:hidden;
 }
@@ -212,7 +212,8 @@ input{font-family:inherit; color:inherit;}
 }
 .ctm-swatch-pick:hover{ border-color:var(--accent); }
 .ctm-swatch-pick input[type="color"]{
-  position:absolute; inset:-4px; opacity:0; cursor:pointer; width:calc(100%+8px); height:calc(100%+8px);
+  position:absolute; inset:0; opacity:0; cursor:pointer;
+  width:100%; height:100%; border:none; padding:0;
 }
 .ctm-hex-display{ font-size:13px; font-family:var(--mono); color:var(--text-0); }
 
@@ -251,11 +252,18 @@ input{font-family:inherit; color:inherit;}
 .mp-rail{ width:32px; flex:0 0 32px; padding:6px 4px; display:flex; flex-direction:column; gap:5px; border-right:1px solid; }
 .mp-tool{ width:24px; height:20px; border-radius:4px; opacity:0.35; }
 .mp-tool.active{ opacity:1; }
-.mp-canvas-wrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:12px; background:var(--mp-cvoid); overflow:hidden; }
+.mp-canvas-wrap{
+  flex:1; display:flex; align-items:center; justify-content:center;
+  padding:14px; background:var(--mp-cvoid); overflow:hidden;
+  background-image:
+    linear-gradient(var(--mp-grid-line,rgba(255,255,255,0.07)) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mp-grid-line,rgba(255,255,255,0.07)) 1px, transparent 1px);
+  background-size:16px 16px;
+}
 .mp-canvas{
-  height:100%; aspect-ratio:1/1; border-radius:4px;
-  box-shadow:0 2px 12px rgba(0,0,0,0.25); overflow:hidden;
-  background:#fff; flex: 0 0 auto;
+  width:110px; height:110px; border-radius:3px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.28); overflow:hidden;
+  background:#fff; flex:0 0 auto;
 }
 .mp-canvas svg{ width:100%; height:100%; display:block; }
 
@@ -712,6 +720,18 @@ select.input{ font-family:var(--sans); }
           <div class="ctm-preview-label">Live preview</div>
           <div id="ctm-preview">
 
+            <!-- ===== MINI TOPBAR ===== -->
+            <div class="mp-topbar" style="background:var(--mp-bg1);border-color:var(--mp-line);">
+              <div class="mp-brand" style="background:var(--mp-accent);"></div>
+              <div class="mp-sep" style="background:var(--mp-line);"></div>
+              <div class="mp-btn" style="width:22px;background:var(--mp-bg3);"></div>
+              <div class="mp-btn" style="width:30px;background:var(--mp-bg3);"></div>
+              <div class="mp-btn" style="width:18px;background:var(--mp-bg3);"></div>
+              <div style="flex:1;"></div>
+              <div class="mp-btn" style="width:10px;height:10px;border-radius:50%;background:var(--mp-accent);opacity:0.9;"></div>
+              <div class="mp-btn" style="width:26px;background:var(--mp-accent);opacity:0.9;"></div>
+            </div>
+
             <!-- ===== MINI BODY ===== -->
             <div class="mp-body">
               <!-- Tool Rail -->
@@ -728,30 +748,20 @@ select.input{ font-family:var(--sans); }
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="12" cy="12" r="7.5" stroke="var(--mp-text1)" stroke-width="2"/></svg>
                 <!-- Line -->
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M5 19L19 5" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
-                <!-- Polygon -->
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M12 3L21 9.5L17.5 20H6.5L3 9.5L12 3Z" stroke="var(--mp-text1)" stroke-width="2" stroke-linejoin="round"/></svg>
                 <!-- Pen -->
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 17L10 8L14 14L20 5" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="17" r="1.5" fill="var(--mp-text1)"/><circle cx="20" cy="5" r="1.5" fill="var(--mp-text1)"/></svg>
-                <!-- Freehand -->
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 18C7 10 9 6 12 6C15 6 13 14 16 14C18 14 19 11 20 9" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
-                <!-- Text -->
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M6 5H18M12 5V19M9 19H15" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
                 <!-- sep -->
                 <div style="height:1px;width:11px;background:var(--mp-line);margin:1px 0;opacity:0.6;flex:0 0 1px;"></div>
-                <!-- Zoom in -->
+                <!-- Zoom -->
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="10.5" cy="10.5" r="6.5" stroke="var(--mp-text1)" stroke-width="2"/><path d="M20 20L15 15M10.5 8V13M8 10.5H13" stroke="var(--mp-text1)" stroke-width="1.8" stroke-linecap="round"/></svg>
-                <!-- Zoom out -->
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="10.5" cy="10.5" r="6.5" stroke="var(--mp-text1)" stroke-width="2"/><path d="M20 20L15 15M8 10.5H13" stroke="var(--mp-text1)" stroke-width="1.8" stroke-linecap="round"/></svg>
-                <!-- Zoom fit -->
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 9V4H9M20 9V4H15M4 15V20H9M20 15V20H15" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
               <div class="mp-canvas-wrap">
-                <div class="mp-canvas" style="background:var(--mp-bg1,#ffffff);">
-                  <svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="15" y="15" width="75" height="50" rx="4" fill="none" stroke-width="2" style="stroke:var(--mp-accent,#4a90e2);"/>
-                    <ellipse cx="148" cy="55" rx="32" ry="24" style="fill:var(--mp-adim,#1d4669);stroke:var(--mp-accent,#4a90e2);" stroke-width="1.5" fill="none"/>
-                    <line x1="15" y1="95" x2="185" y2="115" stroke-width="2" style="stroke:var(--mp-text1,#9cb6d1);"/>
-                    <rect x="15" y="15" width="75" height="50" rx="4" fill="none" stroke-width="1" stroke-dasharray="3,2" style="stroke:var(--mp-accent,#4a90e2);opacity:0.5"/>
+                <div class="mp-canvas" style="background:#ffffff;">
+                  <svg viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="10" y="12" width="48" height="36" rx="3" fill="none" stroke-width="1.5" style="stroke:var(--mp-accent);"/>
+                    <ellipse cx="82" cy="38" rx="20" ry="15" style="fill:var(--mp-accent-dim);stroke:var(--mp-accent);" stroke-width="1.5"/>
+                    <line x1="10" y1="70" x2="100" y2="85" stroke-width="1.5" style="stroke:var(--mp-text1);opacity:0.6;"/>
+                    <rect x="10" y="12" width="48" height="36" rx="3" fill="none" stroke-width="0.8" stroke-dasharray="2.5,2" style="stroke:var(--mp-accent);opacity:0.5"/>
                   </svg>
                 </div>
               </div>
@@ -4588,14 +4598,17 @@ function updateCtmBaseButtons(){
 }
 function updateCtmPreview(){
   const accent=$('#ctm-accent-input').value;
+  if(!accent || !accent.startsWith('#')) return;
   const pal=generatePaletteFromAccent(accent,ctmBase);
   const p=$('#ctm-preview');
   if(!p) return;
-  // Apply palette as CSS vars on the preview element
-  const vars=`--mp-bg0:${pal.bg0};--mp-bg1:${pal.bg1};--mp-bg2:${pal.bg2};--mp-bg3:${pal.bg3};`+
+  // Apply full palette as CSS vars on the preview root element
+  const gridLine = pal.gridLine || (ctmBase==='dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)');
+  p.style.cssText=
+    `--mp-bg0:${pal.bg0};--mp-bg1:${pal.bg1};--mp-bg2:${pal.bg2};--mp-bg3:${pal.bg3};`+
     `--mp-line:${pal.line};--mp-text0:${pal.text0};--mp-text1:${pal.text1};`+
-    `--mp-accent:${pal.accent};--mp-accent-dim:${pal.accentDim};--mp-cvoid:${pal.canvasVoid};`;
-  p.style.cssText=vars;
+    `--mp-accent:${pal.accent};--mp-accent-dim:${pal.accentDim};`+
+    `--mp-cvoid:${pal.canvasVoid};--mp-grid-line:${gridLine};`;
 }
 
 $$('.ctm-base-btn').forEach(b=>{
@@ -4606,6 +4619,8 @@ $('#ctm-accent-input').addEventListener('input',e=>{
   $('#ctm-hex').textContent=e.target.value;
   updateCtmPreview();
 });
+// Clicking anywhere on the swatch reliably opens the native color picker
+ctmColorDisplay.addEventListener('click', ()=>{ $('#ctm-accent-input').click(); });
 if($('#ctm-cancel')) $('#ctm-cancel').addEventListener('click',()=>{ $('#custom-theme-overlay').classList.remove('open'); });
 if($('#ctm-cancel-x')) $('#ctm-cancel-x').addEventListener('click',()=>{ $('#custom-theme-overlay').classList.remove('open'); });
 $('#custom-theme-overlay').addEventListener('click',e=>{ if(e.target===$('#custom-theme-overlay')) $('#custom-theme-overlay').classList.remove('open'); });
