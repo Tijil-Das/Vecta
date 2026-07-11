@@ -612,6 +612,10 @@ select.input{ font-family:var(--sans); }
         <svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="12" rx="8" ry="6" stroke="currentColor" stroke-width="1.8"/></svg>
         <span class="kbd">O</span>
       </div>
+      <div class="tool" data-tool="circle" title="Circle (C)">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="7.5" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span class="kbd">C</span>
+      </div>
       <div class="tool" data-tool="line" title="Line (L)">
         <svg viewBox="0 0 24 24" fill="none"><path d="M5 19L19 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <span class="kbd">L</span>
@@ -1789,21 +1793,25 @@ function renderSelection(){
 
 function drawSelBoxSVG(o){
   const cx = o.x+o.w/2, cy=o.y+o.h/2;
-  const g = document.createElementNS(SVG_NS,'g');
-  g.setAttribute('transform', o.rot ? `rotate(${o.rot} ${cx} ${cy})` : '');
   const color = o.locked ? '#71767f' : '#4fb2e8';
 
   // For shapes with real geometry (paths, polygons, lines), outline the actual
-  // silhouette rather than a generic rectangle — a hand-drawn squiggle shouldn't
-  // look like it's boxed inside a rectangle it never was.
+  // silhouette rather than a generic rectangle.
   const outline = selectionOutlineFor(o);
   if(outline){
+    // Geometry-traced outlines already use absolute SVG coordinates matching the
+    // rendered shape exactly — no extra rotation needed; they are correct as-is.
+    // (Applying a parent-group rotation on top would double-rotate them.)
     outline.setAttribute('fill','none');
     outline.setAttribute('stroke', color);
     outline.setAttribute('stroke-width', 1.5/state.zoom);
     if(o.locked) outline.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
-    g.appendChild(outline);
+    overlay.appendChild(outline);
   } else {
+    // Bbox-based shapes (rect, ellipse, text, image) — the plain unrotated bbox
+    // rect must be wrapped in a rotated group so it visually follows the object.
+    const g = document.createElementNS(SVG_NS,'g');
+    g.setAttribute('transform', o.rot ? `rotate(${o.rot} ${cx} ${cy})` : '');
     const rect = document.createElementNS(SVG_NS,'rect');
     rect.setAttribute('x',o.x); rect.setAttribute('y',o.y);
     rect.setAttribute('width',o.w); rect.setAttribute('height',o.h);
@@ -1811,8 +1819,8 @@ function drawSelBoxSVG(o){
     rect.setAttribute('stroke-width', 1.5/state.zoom);
     if(o.locked) rect.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
     g.appendChild(rect);
+    overlay.appendChild(g);
   }
-  overlay.appendChild(g);
   if(!o.locked) addHandles(o.x,o.y,o.w,o.h,o.rot,o.id, o.type);
 }
 
@@ -2291,7 +2299,7 @@ function updatePropsPanel(){
 function round2(n){ return Math.round(n*100)/100; }
 function panelTitleFor(o, isMulti){
   if(isMulti) return 'Multiple objects';
-  const names = { rect:'Rectangle', ellipse:'Ellipse', line:'Line', polygon:'Polygon',
+  const names = { rect:'Rectangle', ellipse:'Ellipse', circle:'Circle', line:'Line', polygon:'Polygon',
     text:'Text', image:'Image', group:'Group' };
   if(o.type==='path') return o.closed ? 'Shape' : 'Drawing';
   return names[o.type] || 'Object';
@@ -2360,7 +2368,7 @@ function applyPropToSelection(fn){
 }
 
 // wire up prop inputs
-function bindNumberProp(id, key, isW){
+function bindNumberProp(id, key){
   $(id).addEventListener('input', e=>{
     const v = parseFloat(e.target.value);
     if(isNaN(v)) return;
@@ -2369,6 +2377,15 @@ function bindNumberProp(id, key, isW){
         const delta = v - o[key];
         if(o.type==='group') moveObjectBy(o, key==='x'?delta:0, key==='y'?delta:0);
         else o[key] = v;
+      });
+    } else if(key==='w' || key==='h'){
+      applyPropToSelection(o=>{
+        const oldVal = o[key] || 1;
+        o[key] = Math.max(1, v);
+        if(o.points && o.points.length && oldVal > 0){
+          const scale = o[key] / oldVal;
+          o.points = o.points.map(p => key==='w' ? [p[0]*scale, p[1]] : [p[0], p[1]*scale]);
+        }
       });
     } else {
       applyPropToSelection(o=> o[key]=v );
@@ -2673,10 +2690,18 @@ function onCanvasMouseDown(e){
   }
 
   if(state.tool === 'select'){
-    let hitId = target.closest('[data-id]') ? target.closest('[data-id]').dataset.id : null;
+    const allAtPoint = topLevelObjects().filter(o => o.visible && !o.locked && _isNearObject(pt, o, 0));
+    let hitId = allAtPoint.length > 0 ? allAtPoint[allAtPoint.length - 1].id : null;
+    
     if(hitId){
-      const parentGroup = findParentGroup(hitId);
-      if(parentGroup && !e.altKey) hitId = parentGroup.id; // clicking into a group selects the whole group; Alt+click reaches the child directly
+      if(e.altKey && allAtPoint.length > 1){
+        const curIdx = allAtPoint.findIndex(o => o.id === hitId || (findParentGroup(hitId)||{}).id === o.id);
+        const nextIdx = (curIdx + 1) % allAtPoint.length;
+        hitId = allAtPoint[nextIdx].id;
+      } else {
+        const parentGroup = findParentGroup(hitId);
+        if(parentGroup) hitId = parentGroup.id;
+      }
       if(!state.selectedIds.includes(hitId)) selectObject(hitId, e.shiftKey);
       startMoveDrag(pt, e);
     } else {
@@ -2691,7 +2716,7 @@ function onCanvasMouseDown(e){
     return;
   }
 
-  if(['rect','ellipse','line','polygon','freehand'].includes(state.tool)){
+  if(['rect','ellipse','circle','line','polygon','freehand'].includes(state.tool)){
     startDrawDrag(pt);
     return;
   }
@@ -2801,7 +2826,8 @@ function startMarqueeDrag(pt){
 }
 
 function startDrawDrag(pt){
-  const o = makeObject(state.tool==='freehand' ? 'path' : state.tool, {x:pt.x, y:pt.y, w:0, h:0, fill: nextDefaultShapeColor()});
+  const toolType = state.tool === 'circle' ? 'ellipse' : state.tool;
+  const o = makeObject(toolType === 'freehand' ? 'path' : toolType, {x:pt.x, y:pt.y, w:0, h:0, fill: nextDefaultShapeColor()});
   const strokeColor = isLightColor(state.canvas.bg) ? '#1c1e21' : '#f4f5f7';
   if(state.tool==='line'){ o.points=[[0,0],[0,0]]; o.fill='none'; o.stroke=strokeColor; o.strokeWidth=2; }
   if(state.tool==='polygon'){ o.points = regularPolygonPoints(5, 0,0,50); o.w=100; o.h=100; }
@@ -2810,7 +2836,7 @@ function startDrawDrag(pt){
   state.selectedIds = [o.id];
   renderObject(o);
   reorderDom();
-  drag = {type:'draw', obj:o, startX:pt.x, startY:pt.y};
+  drag = {type:'draw', obj:o, startX:pt.x, startY:pt.y, tool:state.tool};
 }
 
 function regularPolygonPoints(sides, cx, cy, r){
@@ -2986,8 +3012,8 @@ function onCanvasMouseMove(e){
       o.w=size; o.h=size;
     } else {
       let rw = pt.x-x0, rh = pt.y-y0;
-      // Shift: constrain rect/ellipse to square/circle
-      if(e.shiftKey){
+      // Circle tool: always constrain to square; shift on ellipse/rect also constrains
+      if(drag.tool==='circle' || (o.type==='ellipse' && e.shiftKey) || (o.type==='rect' && e.shiftKey)){
         const s = Math.min(Math.abs(rw), Math.abs(rh));
         rw = rw < 0 ? -s : s;
         rh = rh < 0 ? -s : s;
@@ -3001,6 +3027,30 @@ function onCanvasMouseMove(e){
     // a shape being resized; the selection chrome only appears once it's done.
     if(o.type==='path') overlay.innerHTML = '';
     else renderSelection();
+  }
+  else if(drag.type==='rotate-multi'){
+    // Rotate all selected objects around the combined bounding-box centre.
+    const dx = pt.x - drag.cx, dy = pt.y - drag.cy;
+    let ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    if(ang < 0) ang += 360;
+    if(ang >= 360) ang -= 360;
+    if(drag.shiftLock){ ang = Math.round(ang/15)*15; }
+    if(drag.lastAng === undefined){ drag.lastAng = ang; drag.startAng = ang; return; }
+    drag.lastAng = ang;
+    const totalDelta = ang - drag.startAng;
+    const rad = totalDelta * Math.PI / 180;
+    drag.origins.forEach(orig => {
+      const o = getObj(orig.id);
+      if(!o) return;
+      const nx = orig.ocx * Math.cos(rad) - orig.ocy * Math.sin(rad);
+      const ny = orig.ocx * Math.sin(rad) + orig.ocy * Math.cos(rad);
+      o.x = drag.cx + nx - orig.w/2;
+      o.y = drag.cy + ny - orig.h/2;
+      o.rot = (orig.rot + totalDelta + 360) % 360;
+      renderObject(o);
+    });
+    renderSelection();
+    updatePropsPanel();
   }
   else if(drag.type==='resize'){
     doResize(pt);
@@ -3032,31 +3082,10 @@ function onCanvasMouseUp(e){
     }
   }
   if(drag.type==='rotate-multi'){
-    // Rotate all selected objects around the combined bounding-box centre.
-    const dx = pt.x - drag.cx, dy = pt.y - drag.cy;
-    let ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-    if(ang < 0) ang += 360;
-    if(ang >= 360) ang -= 360;
-    // 15° snap when shift is held
-    if(e.shiftKey){ ang = Math.round(ang/15)*15; }
-    const delta = ang - (drag.lastAng !== undefined ? drag.lastAng : ang);
-    if(drag.lastAng === undefined) { drag.lastAng = ang; drag.startAng = ang; return; }
-    drag.lastAng = ang;
-    const totalDelta = ang - drag.startAng;
-    const rad = totalDelta * Math.PI / 180;
-    drag.origins.forEach(orig => {
-      const o = getObj(orig.id);
-      if(!o) return;
-      // Rotate original centre-offset around the group centre
-      const nx = orig.ocx * Math.cos(rad) - orig.ocy * Math.sin(rad);
-      const ny = orig.ocx * Math.sin(rad) + orig.ocy * Math.cos(rad);
-      o.x = drag.cx + nx - orig.w/2;
-      o.y = drag.cy + ny - orig.h/2;
-      o.rot = (orig.rot + totalDelta + 360) % 360;
-      renderObject(o);
-    });
-    renderSelection();
-    updatePropsPanel();
+    // final cleanup on mouseUp — nothing extra needed, rotate-multi is fully handled in mousemove
+    drag = null;
+    clearRotationReadout();
+    pushHistory();
     return;
   }
   if(drag.type==='draw'){
@@ -3125,31 +3154,42 @@ function updateHoverOutline(e){
 
   const resolvedId = hitId ? ((findParentGroup(hitId)||{}).id || hitId) : null;
   if(resolvedId === lastHoverId) return;
-  clearHoverOutline(); // remove any previous outline element first (this does NOT touch lastHoverId)
-  lastHoverId = resolvedId; // set AFTER clearing, so it actually sticks
+  clearHoverOutline();
+  lastHoverId = resolvedId;
   if(!resolvedId) return;
-  if(state.selectedIds.includes(resolvedId)) return; // already shown via selection box
+  if(state.selectedIds.includes(resolvedId)) return;
   const o = getObj(resolvedId);
   if(!o || o.locked) return;
   const cx = o.x+o.w/2, cy = o.y+o.h/2;
-  const g = document.createElementNS(SVG_NS,'g');
-  g.setAttribute('id','hover-outline');
-  g.setAttribute('transform', o.rot ? `rotate(${o.rot} ${cx} ${cy})` : '');
-  g.style.pointerEvents = 'none';
+
+  // Same logic as drawSelBoxSVG: geometry-traced shapes (line/path/polygon) already
+  // encode absolute coordinates — no rotation group needed. Bbox shapes need one.
   let shape = selectionOutlineFor(o);
   if(!shape){
+    const g = document.createElementNS(SVG_NS,'g');
+    g.setAttribute('id','hover-outline');
+    g.setAttribute('transform', o.rot ? `rotate(${o.rot} ${cx} ${cy})` : '');
+    g.style.pointerEvents = 'none';
     shape = document.createElementNS(SVG_NS,'rect');
     shape.setAttribute('x',o.x); shape.setAttribute('y',o.y);
     shape.setAttribute('width',o.w); shape.setAttribute('height',o.h);
+    shape.setAttribute('fill','none');
+    shape.setAttribute('stroke','#4fb2e8');
+    shape.setAttribute('stroke-width', 1.5/state.zoom);
+    shape.setAttribute('vector-effect','non-scaling-stroke');
+    shape.style.pointerEvents = 'none';
+    g.appendChild(shape);
+    overlay.appendChild(g);
+  } else {
+    shape.setAttribute('id','hover-outline');
+    shape.setAttribute('fill','none');
+    shape.setAttribute('stroke','#4fb2e8');
+    shape.setAttribute('stroke-width', 1.5/state.zoom);
+    shape.setAttribute('vector-effect','non-scaling-stroke');
+    shape.style.pointerEvents = 'none';
+    shape.style.shapeRendering = 'geometricPrecision';
+    overlay.appendChild(shape);
   }
-  shape.setAttribute('fill','none');
-  shape.setAttribute('stroke','#4fb2e8');
-  shape.setAttribute('stroke-width', 1.5/state.zoom);
-  shape.setAttribute('vector-effect','non-scaling-stroke');
-  shape.style.pointerEvents = 'none';
-  shape.style.shapeRendering = 'geometricPrecision';
-  g.appendChild(shape);
-  overlay.appendChild(g);
 }
 function clearHoverOutline(){
   const el = $('#hover-outline');
@@ -3527,7 +3567,7 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Delete' || e.key==='Backspace'){ e.preventDefault(); deleteSelected(); return; }
   if(e.key==='Escape'){ selectObject(null); setTool('select'); return; }
 
-  const keyTool = {v:'select', r:'rect', o:'ellipse', l:'line', p:'polygon', e:'pen', f:'freehand', t:'text'};
+  const keyTool = {v:'select', r:'rect', o:'ellipse', c:'circle', l:'line', p:'polygon', e:'pen', f:'freehand', t:'text'};
   if(keyTool[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey){ setTool(keyTool[e.key.toLowerCase()]); return; }
 
   if(e.key==='+' || e.key==='='){ setZoom(state.zoom*1.2, window.innerWidth/2, window.innerHeight/2); }
