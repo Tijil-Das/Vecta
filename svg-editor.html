@@ -228,8 +228,9 @@ input{font-family:inherit; color:inherit;}
 /* Right: live preview */
 .ctm-preview-wrap{
   flex:1; min-width:0; padding:16px 20px; display:flex; flex-direction:column;
-  background:var(--bg-0);
+  background:var(--mp-backdrop, var(--bg-0));
   overflow:hidden;
+  transition: background 0.3s;
 }
 .ctm-preview-label{ font-size:10.5px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; flex:0 0 auto; }
 #ctm-preview{
@@ -733,16 +734,16 @@ select.input{ font-family:var(--sans); }
                 Vecta
               </div>
               <!-- Doc name -->
-              <div style="width:45px;height:14px;border-radius:3px;background:var(--mp-bg0);"></div>
+              <div style="font-size:10px;font-weight:500;color:var(--mp-text0);padding:2px 4px;">Untitled</div>
               <!-- Canvas settings -->
               <div style="width:55px;height:18px;border-radius:4px;background:var(--mp-bg2);border:1px solid var(--mp-line);"></div>
               
               <div class="mp-sep" style="background:var(--mp-line);height:14px;margin:0 2px;"></div>
               
               <!-- Undo / Redo -->
-              <div style="display:flex;gap:3px;">
-                <div style="width:16px;height:16px;border-radius:3px;background:var(--mp-bg0);"></div>
-                <div style="width:16px;height:16px;border-radius:3px;background:var(--mp-bg0);"></div>
+              <div style="display:flex;gap:4px;color:var(--mp-text0);opacity:0.7;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 8H14C17 8 19 10 19 13C19 16 17 18 14 18H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M17 8H10C7 8 5 10 5 13C5 16 7 18 10 18H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 4L18 8L14 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
 
               <div class="mp-sep" style="background:var(--mp-line);height:14px;margin:0 2px;"></div>
@@ -4351,6 +4352,7 @@ function generateDarkPalette(accentHex){
     accentText: contrastText(accent),
     danger: '#e8664f', ok: '#5ec98f',
     canvasVoid: hslToHex(h, bgS*1.05, clamp(6 + lShift, 2, 10)),
+    backdrop: hslToHex(h, bgS, clamp(2 + lShift, 0, 5)),
   };
 }
 
@@ -4391,6 +4393,7 @@ function generateLightPalette(accentHex){
     accentText: '#ffffff',
     danger: '#d1483a', ok: '#2f9e63',
     canvasVoid: hslToHex(h, bgS*0.85, clamp(75 + lShift, 66, 82)),
+    backdrop: hslToHex(h, clamp(bgS*0.4, 10, 30), clamp(96 + lShift, 93, 100)),
   };
 }
 
@@ -4649,15 +4652,15 @@ function updateCtmPreview(){
   const accent=$('#ctm-accent-input').value;
   if(!accent || !accent.startsWith('#')) return;
   const pal=generatePaletteFromAccent(accent,ctmBase);
-  const p=$('#ctm-preview');
-  if(!p) return;
+  const wrap=$('.ctm-preview-wrap');
+  if(!wrap) return;
   // Apply full palette as CSS vars on the preview root element
   const gridLine = pal.gridLine || (ctmBase==='dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)');
-  p.style.cssText=
+  wrap.style.cssText=
     `--mp-bg0:${pal.bg0};--mp-bg1:${pal.bg1};--mp-bg2:${pal.bg2};--mp-bg3:${pal.bg3};`+
     `--mp-line:${pal.line};--mp-text0:${pal.text0};--mp-text1:${pal.text1};`+
     `--mp-accent:${pal.accent};--mp-accent-dim:${pal.accentDim};`+
-    `--mp-cvoid:${pal.canvasVoid};--mp-grid-line:${gridLine};`;
+    `--mp-cvoid:${pal.canvasVoid};--mp-grid-line:${gridLine};--mp-backdrop:${pal.backdrop};`;
 }
 
 $$('.ctm-base-btn').forEach(b=>{
