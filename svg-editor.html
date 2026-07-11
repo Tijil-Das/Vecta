@@ -4307,9 +4307,15 @@ function contrastText(hex){
 function generateDarkPalette(accentHex){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
+  const lum = hexLuminance(accentHex); // 0.0 to 1.0
 
-  // Background chroma — same formula used by both modes for true symmetry.
-  const bgS = clamp(s * 0.55, 15, 38);
+  // Perceptual saturation: darker colors (low lum) need a saturation boost to be visible as a tint.
+  // Brighter colors (high lum) need to be reigned in so they aren't glaring.
+  const satMult = 0.75 - (lum * 0.45); 
+  const bgS = clamp(s * satMult, 12, 45);
+
+  // Perceptual lightness shift: darker colors need to be slightly lighter to not be pure black.
+  const lShift = 3.5 - (lum * 6); 
 
   const aL = clamp(l, 54, 72);
   const aS = clamp(s, 60, 92);
@@ -4318,61 +4324,60 @@ function generateDarkPalette(accentHex){
   const accentDim   = hslToHex(h, clamp(aS*0.55, 28, 58), clamp(aL*0.28, 11, 22));
 
   return {
-    bg0:      hslToHex(h, bgS,        8),   // deepest outer shell / canvas-void area
-    bg1:      hslToHex(h, bgS*0.90,  12),   // topbar, panels, sidebar
-    bg2:      hslToHex(h, bgS*0.82,  17),   // inputs, hover backgrounds
-    bg3:      hslToHex(h, bgS*0.75,  22),   // pressed / active states
-    line:     hslToHex(h, bgS*0.68,  27),
-    lineSoft: hslToHex(h, bgS*0.58,  19),
-    // Grid: whisper-quiet lines — a step above canvas-void, not a full tone jump
-    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), 15),
+    bg0:      hslToHex(h, bgS,        clamp(8 + lShift, 4, 12)),   // deepest outer shell
+    bg1:      hslToHex(h, bgS*0.90,   clamp(12 + lShift, 8, 16)),  // topbar, panels
+    bg2:      hslToHex(h, bgS*0.82,   clamp(17 + lShift, 12, 22)), // inputs
+    bg3:      hslToHex(h, bgS*0.75,   clamp(22 + lShift, 16, 28)), // pressed/active
+    line:     hslToHex(h, bgS*0.68,   clamp(27 + lShift, 20, 32)),
+    lineSoft: hslToHex(h, bgS*0.58,   clamp(19 + lShift, 14, 24)),
+    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), clamp(15 + lShift, 10, 20)),
     text0: hslToHex(h, clamp(s*0.08, 2,  7), 93),
     text1: hslToHex(h, clamp(s*0.28, 7, 22), 65),
     text2: hslToHex(h, clamp(s*0.20, 5, 16), 44),
     accent, accentHover, accentDim,
     accentText: contrastText(accent),
     danger: '#e8664f', ok: '#5ec98f',
-    canvasVoid: hslToHex(h, bgS*1.05, 6),
+    canvasVoid: hslToHex(h, bgS*1.05, clamp(6 + lShift, 2, 10)),
   };
 }
 
 function generateLightPalette(accentHex){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
+  const lum = hexLuminance(accentHex);
 
-  // Light mode needs higher saturation to feel as vibrant as dark mode, 
-  // because mixing with white heavily dilutes perceived chroma.
-  const bgS = clamp(s * 0.85, 25, 55);
+  // Perceptual saturation for light mode: 
+  // Darker accent colors (blue/purple) look gray in light tints, they need HUGE saturation.
+  // Lighter accent colors (yellow/green) look neon, they need LESS saturation.
+  const satMult = 1.25 - (lum * 0.75);
+  const bgS = clamp(s * satMult, 20, 65);
 
-  // Accent clamped to readable range on light bg
+  // Perceptual lightness: 
+  // If lum is low (blue, <0.2), make the background *lighter* (+L) so it's not too heavy/muddy. 
+  // If lum is high (yellow, >0.7), make the background *darker* (-L) so the tint is visible against white.
+  const lShift = 2 - (lum * 6.5);
+
   const aL = clamp(l, 28, 50);
   const aS = clamp(s, 58, 88);
   const accent      = hslToHex(h, aS, aL);
   const accentHover = hslToHex(h, aS, clamp(aL + 9, 36, 60));
   const accentDim   = hslToHex(h, clamp(aS*0.42, 18, 46), clamp(106 - aL*0.22, 86, 95));
 
-  // PERCEPTUAL SYMMETRY:
-  // Dark bg levels:  8% → 12% → 17% → 22%   (from darkest to lightest)
-  // Light bg levels: 82% → 87% → 91% → 86%   (from most-tinted to least-tinted)
-  // Key insight: 92-97% HSL lightness looks almost white regardless of saturation.
-  // 82-91% is the range where color is ACTUALLY visible and matches dark-mode weight.
   return {
-    bg0:      hslToHex(h, bgS,        82),  // outer shell — as tinted as dark mode's bg0
-    bg1:      hslToHex(h, bgS*0.90,  87),   // topbar, panels — strongly tinted
-    bg2:      hslToHex(h, bgS*0.82,  91),   // inputs — lighter tint
-    bg3:      hslToHex(h, bgS*0.75,  85),   // hover/active — punchy tint
-    line:     hslToHex(h, bgS*0.68,  70),
-    lineSoft: hslToHex(h, bgS*0.58,  80),
-    // Grid: whisper-quiet lines — a step below canvas-void, not a heavy mark
-    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), 70),
+    bg0:      hslToHex(h, bgS,        clamp(82 + lShift, 74, 88)),  // outer shell
+    bg1:      hslToHex(h, bgS*0.90,   clamp(87 + lShift, 79, 93)),  // topbar, panels
+    bg2:      hslToHex(h, bgS*0.82,   clamp(91 + lShift, 84, 96)),  // inputs
+    bg3:      hslToHex(h, bgS*0.75,   clamp(85 + lShift, 77, 90)),  // hover/active
+    line:     hslToHex(h, bgS*0.68,   clamp(70 + lShift, 60, 78)),
+    lineSoft: hslToHex(h, bgS*0.58,   clamp(80 + lShift, 70, 88)),
+    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), clamp(70 + lShift, 60, 78)),
     text0: hslToHex(h, clamp(s*0.32,  4, 16), 10),
     text1: hslToHex(h, clamp(s*0.22,  3, 11), 32),
     text2: hslToHex(h, clamp(s*0.14,  2,  7), 50),
     accent, accentHover, accentDim,
     accentText: '#ffffff',
     danger: '#d1483a', ok: '#2f9e63',
-    // Canvas void: clearly colored so it frames the white page strongly
-    canvasVoid: hslToHex(h, bgS*0.85, 75),
+    canvasVoid: hslToHex(h, bgS*0.85, clamp(75 + lShift, 66, 82)),
   };
 }
 
