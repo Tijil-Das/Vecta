@@ -168,7 +168,7 @@ input{font-family:inherit; color:inherit;}
 #custom-theme-overlay.open{ display:flex; }
 #custom-theme-modal{
   background:var(--bg-1); border:1px solid var(--line); border-radius:14px;
-  padding:0; width:720px; height:390px; max-width:97vw; max-height:92vh;
+  padding:0; width:660px; height:410px; max-width:97vw; max-height:92vh;
   box-shadow:0 30px 80px rgba(0,0,0,0.6);
   display:flex; flex-direction:column; overflow:hidden;
 }
@@ -187,11 +187,11 @@ input{font-family:inherit; color:inherit;}
 
 /* Left: controls */
 .ctm-controls{
-  width:220px; flex:0 0 220px; padding:20px 18px;
+  width:220px; flex:0 0 220px; padding:20px 16px;
   border-right:1px solid var(--line);
-  display:flex; flex-direction:column; gap:18px; overflow-y:auto;
+  display:flex; flex-direction:column; justify-content:space-between; overflow:hidden;
 }
-.ctm-field label{ display:block; font-size:11px; color:var(--text-2); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+.ctm-field label{ display:block; font-size:11px; color:var(--text-2); margin-bottom:4px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
 .ctm-field input[type="text"]{
   width:100%; background:var(--bg-2); border:1px solid var(--line);
   border-radius:6px; padding:8px 10px; font-size:13px;
@@ -213,7 +213,7 @@ input{font-family:inherit; color:inherit;}
   display:flex; align-items:center; gap:10px;
 }
 .ctm-swatch-pick{
-  width:40px; height:40px; border-radius:8px; border:2px solid var(--line);
+  width:32px; height:32px; border-radius:6px; border:2px solid var(--line);
   cursor:pointer; position:relative; overflow:hidden; flex:0 0 40px;
   transition:border-color .15s;
 }
@@ -248,7 +248,7 @@ input{font-family:inherit; color:inherit;}
 }
 /* Mini UI inside preview — colors are set via inline vars on the element */
 .mp-topbar{
-  height:32px; flex:0 0 32px; display:flex; align-items:center; padding:0 10px; gap:8px;
+  height:28px; flex:0 0 28px; display:flex; align-items:center; padding:0 10px; gap:8px;
   border-bottom:1px solid;
 }
 .mp-brand{ width:20px; height:8px; border-radius:3px; opacity:0.8; }
@@ -707,6 +707,15 @@ select.input{ font-family:var(--sans); }
             <input type="text" id="ctm-name" placeholder="My theme" maxlength="28">
           </div>
           <div class="ctm-field">
+            <label>Grid colour</label>
+            <div class="ctm-color-pick" id="ctm-grid-pick-wrap">
+              <div class="ctm-swatch-pick" id="ctm-grid-display" style="background:#e0e0e0">
+                <input type="color" id="ctm-grid-input" value="#e0e0e0">
+              </div>
+              <span class="ctm-hex-display" id="ctm-grid-hex">#e0e0e0</span>
+            </div>
+          </div>
+          <div class="ctm-field">
             <label>Accent colour</label>
             <div class="ctm-color-pick">
               <div class="ctm-swatch-pick" id="ctm-color-display" style="background:#4a90e2">
@@ -741,34 +750,34 @@ select.input{ font-family:var(--sans); }
               <!-- Doc name -->
               <div style="font-size:10px;font-weight:500;color:var(--mp-text0);padding:2px 4px;">Untitled</div>
               <!-- Canvas settings -->
-              <div style="width:55px;height:18px;border-radius:4px;background:var(--mp-bg2);border:1px solid var(--mp-line);"></div>
+              <div style="width:48px;height:14px;border-radius:3px;background:var(--mp-bg2);border:1px solid var(--mp-line);"></div>
               
-              <div class="mp-sep" style="background:var(--mp-line);height:14px;margin:0 2px;"></div>
+              <div class="mp-sep" style="background:var(--mp-line);height:12px;margin:0 2px;"></div>
               
               <!-- Undo / Redo -->
               <div style="display:flex;gap:4px;color:var(--mp-text0);opacity:0.7;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 8H14C17 8 19 10 19 13C19 16 17 18 14 18H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M17 8H10C7 8 5 10 5 13C5 16 7 18 10 18H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 4L18 8L14 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M7 8H14C17 8 19 10 19 13C19 16 17 18 14 18H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M17 8H10C7 8 5 10 5 13C5 16 7 18 10 18H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 4L18 8L14 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
 
-              <div class="mp-sep" style="background:var(--mp-line);height:14px;margin:0 2px;"></div>
+              <div class="mp-sep" style="background:var(--mp-line);height:12px;margin:0 2px;"></div>
 
               <!-- HUD -->
-              <div style="display:flex;height:18px;border-radius:4px;background:var(--mp-bg2);border:1px solid var(--mp-line);overflow:hidden;">
-                <div style="width:26px;border-right:1px solid var(--mp-line);"></div>
-                <div style="width:26px;border-right:1px solid var(--mp-line);"></div>
-                <div style="width:38px;"></div>
+              <div style="display:flex;height:14px;border-radius:3px;background:var(--mp-bg2);border:1px solid var(--mp-line);overflow:hidden;">
+                <div style="width:22px;border-right:1px solid var(--mp-line);"></div>
+                <div style="width:22px;border-right:1px solid var(--mp-line);"></div>
+                <div style="width:32px;"></div>
               </div>
 
               <!-- Import -->
-              <div style="width:40px;height:18px;border-radius:4px;background:var(--mp-bg2);border:1px solid var(--mp-line);"></div>
+              <div style="width:35px;height:14px;border-radius:3px;background:var(--mp-bg2);border:1px solid var(--mp-line);"></div>
 
               <div style="flex:1;"></div>
 
               <!-- Theme -->
-              <div style="width:45px;height:18px;border-radius:4px;background:var(--mp-bg2);border:1px solid var(--mp-line);"></div>
+              <div style="width:38px;height:14px;border-radius:3px;background:var(--mp-bg2);border:1px solid var(--mp-line);"></div>
               <!-- Export (Primary) -->
-              <div style="width:45px;height:18px;border-radius:4px;background:var(--mp-accent);opacity:0.95;"></div>
+              <div style="width:40px;height:14px;border-radius:3px;background:var(--mp-accent);opacity:0.95;"></div>
             </div>
 
             <!-- ===== MINI BODY ===== -->
@@ -1241,7 +1250,7 @@ select.input{ font-family:var(--sans); }
           <div style="font-size:12.5px;font-weight:600" id="toggle-bg-label">Include canvas background color</div>
           <div class="small-hint">Off = transparent background in the file (recommended for icons/logos)</div>
         </div>
-        <div class="switch" id="toggle-bg"><div class="knob"></div></div>
+        <div class="switch on" id="toggle-bg"><div class="knob"></div></div>
       </div>
       <div class="toggle-row">
         <div>
@@ -4158,7 +4167,7 @@ function prettyPrintXml(xml){
 }
 
 const exportModal = $('#export-modal');
-let exportOpts = { bg:false, pretty:true, meta:true };
+let exportOpts = { bg:true, pretty:true, meta:true };
 
 function openExportModal(){
   $('#toggle-bg-label').textContent = `Include canvas background color (${state.canvas.bg})`;
@@ -4324,7 +4333,7 @@ function contrastText(hex){
   return hexLuminance(hex) > 0.35 ? '#0d1520' : '#f5f7fa';
 }
 
-function generateDarkPalette(accentHex){
+function generateDarkPalette(accentHex, customGrid){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
   const lum = hexLuminance(accentHex); // 0.0 to 1.0
@@ -4350,7 +4359,7 @@ function generateDarkPalette(accentHex){
     bg3:      hslToHex(h, bgS*0.75,   clamp(22 + lShift, 16, 28)), // pressed/active
     line:     hslToHex(h, bgS*0.68,   clamp(27 + lShift, 20, 32)),
     lineSoft: hslToHex(h, bgS*0.58,   clamp(19 + lShift, 14, 24)),
-    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), clamp(15 + lShift, 10, 20)),
+    gridLine: customGrid || hslToHex(h, clamp(bgS*0.25, 3, 9), clamp(15 + lShift, 10, 20)),
     text0: hslToHex(h, clamp(s*0.08, 2,  7), 93),
     text1: hslToHex(h, clamp(s*0.28, 7, 22), 65),
     text2: hslToHex(h, clamp(s*0.20, 5, 16), 44),
@@ -4362,7 +4371,7 @@ function generateDarkPalette(accentHex){
   };
 }
 
-function generateLightPalette(accentHex){
+function generateLightPalette(accentHex, customGrid){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
   const lum = hexLuminance(accentHex);
@@ -4391,7 +4400,7 @@ function generateLightPalette(accentHex){
     bg3:      hslToHex(h, bgS*0.75,   clamp(85 + lShift, 77, 90)),  // hover/active
     line:     hslToHex(h, bgS*0.68,   clamp(70 + lShift, 60, 78)),
     lineSoft: hslToHex(h, bgS*0.58,   clamp(80 + lShift, 70, 88)),
-    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), clamp(70 + lShift, 60, 78)),
+    gridLine: customGrid || hslToHex(h, clamp(bgS*0.25, 3, 9), clamp(70 + lShift, 60, 78)),
     text0: hslToHex(h, clamp(s*0.32,  4, 16), 10),
     text1: hslToHex(h, clamp(s*0.22,  3, 11), 32),
     text2: hslToHex(h, clamp(s*0.14,  2,  7), 50),
@@ -4404,14 +4413,14 @@ function generateLightPalette(accentHex){
 }
 
 // Mode-aware wrapper — used by CTM preview
-function generatePaletteFromAccent(accentHex, base){
+function generatePaletteFromAccent(accentHex, base, customGrid){
   const mode = base || _currentMode || 'dark';
-  return mode === 'light' ? generateLightPalette(accentHex) : generateDarkPalette(accentHex);
+  return mode === 'light' ? generateLightPalette(accentHex, customGrid) : generateDarkPalette(accentHex, customGrid);
 }
 
 // Inject all CSS vars via a <style> tag — highest-specificity override
-function applyPalette(accentHex, mode){
-  const pal = (mode === 'light') ? generateLightPalette(accentHex) : generateDarkPalette(accentHex);
+function applyPalette(accentHex, mode, customGrid){
+  const pal = (mode === 'light') ? generateLightPalette(accentHex, customGrid) : generateDarkPalette(accentHex, customGrid);
   let el = document.getElementById('vecta-palette-style');
   if(!el){ el = document.createElement('style'); el.id = 'vecta-palette-style'; document.head.appendChild(el); }
   el.textContent = `:root{
@@ -4574,6 +4583,7 @@ function deleteCustomTheme(id){
 /* Module-level mode/accent state */
 let _currentMode = 'dark';
 let _currentAccentHex = '#4fb2e8';
+let _currentGridHex = null;
 
 function getCurrentMode(){
   return _currentMode;
@@ -4584,17 +4594,18 @@ function getCurrentAccent(){
 
 function applyMode(mode){
   _currentMode = mode;
-  applyPalette(_currentAccentHex, mode);
+  applyPalette(_currentAccentHex, mode, _currentGridHex);
   try{ localStorage.setItem('vecta-mode', mode); }catch(e){}
 }
-function applyAccent(accentHexOrId){
+function applyAccent(accentHexOrId, customGrid){
   // Support both predefined IDs and raw hex values
   const predef = {
     'default':'#4fb2e8','forest':'#4fd68c','ocean':'#329eea','rose':'#e8558f','beige':'#c98840'
   };
   const hex = predef[accentHexOrId] || (typeof accentHexOrId==='string' && accentHexOrId.startsWith('#') ? accentHexOrId : '#4fb2e8');
   _currentAccentHex = hex;
-  applyPalette(hex, _currentMode);
+  _currentGridHex = customGrid || null;
+  applyPalette(hex, _currentMode, _currentGridHex);
   try{ localStorage.setItem('vecta-accent-hex', hex); }catch(e){}
 }
 
@@ -4602,7 +4613,7 @@ function applyAccent(accentHexOrId){
 function applyTheme(name){
   if(name && name.startsWith('custom-')){
     const t = customThemes.find(x=>'custom-'+x.id===name);
-    if(t) applyAccent(t.accent);
+    if(t) applyAccent(t.accent, t.gridLine);
     try{ localStorage.setItem('vecta-theme-full', name); }catch(e){}
   }
   if(typeof drawRulers==='function') requestAnimationFrame(()=>{ drawRulers(); renderGuides(); });
@@ -4638,6 +4649,10 @@ function openCustomThemeModal(editId){
     $('#ctm-accent-input').value=t.accent;
     ctmColorDisplay.style.background=t.accent;
     $('#ctm-hex').textContent=t.accent;
+    const gridColor = t.gridLine || (ctmBase==='dark' ? '#23252a' : '#d2d5d8');
+    $('#ctm-grid-input').value = gridColor;
+    $('#ctm-grid-display').style.background = gridColor;
+    $('#ctm-grid-hex').textContent = gridColor;
     // Preview uses current global mode
     ctmBase=_currentMode;
     updateCtmBaseButtons();
@@ -4648,6 +4663,10 @@ function openCustomThemeModal(editId){
     $('#ctm-accent-input').value=accent;
     ctmColorDisplay.style.background=accent;
     $('#ctm-hex').textContent=accent;
+    const gridColor = (ctmBase==='dark' ? '#23252a' : '#d2d5d8');
+    $('#ctm-grid-input').value = gridColor;
+    $('#ctm-grid-display').style.background = gridColor;
+    $('#ctm-grid-hex').textContent = gridColor;
     ctmBase=_currentMode;
     updateCtmBaseButtons();
   }
@@ -4662,7 +4681,8 @@ function updateCtmBaseButtons(){
 function updateCtmPreview(){
   const accent=$('#ctm-accent-input').value;
   if(!accent || !accent.startsWith('#')) return;
-  const pal=generatePaletteFromAccent(accent,ctmBase);
+  const customGrid = $('#ctm-grid-input').value;
+  const pal=generatePaletteFromAccent(accent, ctmBase, customGrid);
   const wrap=$('.ctm-preview-wrap');
   if(!wrap) return;
   // Apply full palette as CSS vars on the preview root element
@@ -4677,6 +4697,12 @@ function updateCtmPreview(){
 $$('.ctm-base-btn').forEach(b=>{
   b.addEventListener('click',()=>{ ctmBase=b.dataset.base; updateCtmBaseButtons(); updateCtmPreview(); });
 });
+$('#ctm-grid-input').addEventListener('input', e=>{
+  $('#ctm-grid-display').style.background=e.target.value;
+  $('#ctm-grid-hex').textContent=e.target.value;
+  updateCtmPreview();
+});
+$('#ctm-grid-display').addEventListener('click', ()=>{ $('#ctm-grid-input').click(); });
 $('#ctm-accent-input').addEventListener('input',e=>{
   ctmColorDisplay.style.background=e.target.value;
   $('#ctm-hex').textContent=e.target.value;
@@ -4710,12 +4736,13 @@ if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
     return; 
   }
   const accent=$('#ctm-accent-input').value;
+  const gridLine = $('#ctm-grid-input').value;
   if(ctmEditingId){
     const t=customThemes.find(x=>x.id===ctmEditingId);
-    if(t){ t.name=name; t.accent=accent; }
+    if(t){ t.name=name; t.accent=accent; t.gridLine=gridLine; }
   } else {
     const id='c'+Date.now();
-    customThemes.push({id,name,accent});
+    customThemes.push({id,name,accent,gridLine});
   }
   saveCustomThemes();
   renderThemeMenu();
@@ -4729,7 +4756,7 @@ if($('#btn-custom-theme')) $('#btn-custom-theme').addEventListener('click',e=>{ 
 
 function initTheme(){
   loadCustomThemes();
-  let savedMode='dark', savedAccentHex='#4fd68c'; // default: Forest green
+  let savedMode='dark', savedAccentHex='#4fd68c', savedGridHex=null; // default: Forest green
   try{
     savedMode = localStorage.getItem('vecta-mode')||'dark';
     // Try new hex key first, fall back to old accent ID
@@ -4745,12 +4772,13 @@ function initTheme(){
     const savedFull = localStorage.getItem('vecta-theme-full');
     if(savedFull && savedFull.startsWith('custom-')){
       const ct = customThemes.find(x=>'custom-'+x.id===savedFull);
-      if(ct) savedAccentHex = ct.accent;
+      if(ct) { savedAccentHex = ct.accent; savedGridHex = ct.gridLine; }
     }
   }catch(e){}
   _currentMode = savedMode;
   _currentAccentHex = savedAccentHex;
-  applyPalette(savedAccentHex, savedMode);
+  _currentGridHex = savedGridHex;
+  applyPalette(savedAccentHex, savedMode, savedGridHex);
   renderThemeMenu();
 }
 
