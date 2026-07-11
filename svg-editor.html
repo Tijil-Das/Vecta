@@ -31,35 +31,15 @@
   --canvas-void:#1b1d21; /* the area outside the white page, behind the ruler/grid */
 }
 
-/* ===== THEMES ===== */
-/* Each theme redefines the same variable set used throughout the UI, so no
-   component needs theme-specific logic — just pick colors that keep the same
-   contrast relationships (text-0 always most readable on bg-1, etc). */
-html[data-theme="light"]{
-  --bg-0:#f4f5f7; --bg-1:#ffffff; --bg-2:#f0f1f3; --bg-3:#e6e8eb;
-  --line:#d8dade; --line-soft:#e4e6e9;
-  --text-0:#1c1e21; --text-1:#5b6068; --text-2:#8a8f97;
-  --accent:#1f8fd6; --accent-hover:#3aa2e3; --accent-dim:#d3ecfb; --accent-text:#ffffff;
-  --danger:#d1483a; --ok:#2f9e63;
-  --canvas-void:#e2e4e8;
-}
-html[data-theme="rose"]{
-  --bg-0:#f7e9ee; --bg-1:#fdf3f6; --bg-2:#f9e6ec; --bg-3:#f3d8e1;
-  --line:#e8c2d1; --line-soft:#f0d7e2;
-  --text-0:#3d2530; --text-1:#7a5566; --text-2:#9c7c8a;
-  --accent:#e8558f; --accent-hover:#ee76a4; --accent-dim:#fbdce8; --accent-text:#ffffff;
-  --danger:#d1483a; --ok:#3f9e6f;
-  --canvas-void:#efd6e0;
-}
-html[data-theme="beige"]{
-  --bg-0:#ece5d8; --bg-1:#f5f0e6; --bg-2:#ece4d6; --bg-3:#e2d7c3;
-  --line:#d3c6ac; --line-soft:#e0d5bf;
-  --text-0:#3a3226; --text-1:#6e6350; --text-2:#948a75;
-  --accent:#b5772e; --accent-hover:#c68c46; --accent-dim:#ecdcc0; --accent-text:#ffffff;
-  --danger:#c14e3a; --ok:#5e8f5a;
-  --canvas-void:#ddd2ba;
-}
-html[data-theme="forest"]{
+/* ===== THEMES — TWO-DIMENSIONAL: data-mode × data-accent =====
+   data-mode: absent=dark, "light"=light
+   data-accent: absent=default-blue, or "forest"|"ocean"|"rose"|"beige"
+   They are fully independent.
+   CSS ORDER MATTERS: accent rules first, then light-mode rule (light wins on chrome).
+*/
+
+/* ── ACCENT COLORS (dark tinted chrome + accent) ── */
+html[data-accent="forest"]{
   --bg-0:#182420; --bg-1:#1e2b26; --bg-2:#25342d; --bg-3:#2e4038;
   --line:#3c5248; --line-soft:#2c3d35;
   --text-0:#e8f2ec; --text-1:#a9c4b7; --text-2:#7a988a;
@@ -67,13 +47,55 @@ html[data-theme="forest"]{
   --danger:#e8664f; --ok:#4fd68c;
   --canvas-void:#101a16;
 }
-html[data-theme="ocean"]{
+html[data-accent="ocean"]{
   --bg-0:#111b24; --bg-1:#15222e; --bg-2:#1c2d3d; --bg-3:#24394c;
   --line:#2e475e; --line-soft:#22364a;
   --text-0:#e1edf8; --text-1:#9cb6d1; --text-2:#6f8ca8;
   --accent:#329eea; --accent-hover:#55b1f0; --accent-dim:#1d4669; --accent-text:#061826;
   --danger:#ea5555; --ok:#329eea;
   --canvas-void:#0b121a;
+}
+html[data-accent="rose"]{
+  --bg-0:#2a1a1f; --bg-1:#32202a; --bg-2:#3b2633; --bg-3:#4a2f3f;
+  --line:#6a3d52; --line-soft:#4f2e40;
+  --text-0:#f5e8ed; --text-1:#c4a0b0; --text-2:#9e7a8a;
+  --accent:#e8558f; --accent-hover:#ee76a4; --accent-dim:#5a1e35; --accent-text:#ffffff;
+  --danger:#e8664f; --ok:#5ec98f;
+  --canvas-void:#1a0e14;
+}
+html[data-accent="beige"]{
+  --bg-0:#2a2218; --bg-1:#332920; --bg-2:#3d3128; --bg-3:#4a3c2e;
+  --line:#6a5540; --line-soft:#4f3f2e;
+  --text-0:#f5ede0; --text-1:#c4aa8a; --text-2:#9e8a6a;
+  --accent:#c98840; --accent-hover:#d99e5e; --accent-dim:#5a3a1a; --accent-text:#ffffff;
+  --danger:#e8664f; --ok:#5ec98f;
+  --canvas-void:#1a1408;
+}
+
+/* ── LIGHT MODE chrome — comes AFTER accent rules so it wins on bg/line/text ── */
+html[data-mode="light"]{
+  --bg-0:#f4f5f7; --bg-1:#ffffff; --bg-2:#f0f1f3; --bg-3:#e6e8eb;
+  --line:#d8dade; --line-soft:#e4e6e9;
+  --text-0:#1c1e21; --text-1:#5b6068; --text-2:#8a8f97;
+  --danger:#d1483a; --ok:#2f9e63;
+  --canvas-void:#e2e4e8;
+}
+
+/* ── LIGHT MODE accent overrides (2-attr specificity beats single-attr) ── */
+html[data-mode="light"]:not([data-accent]){
+  --accent:#1f8fd6; --accent-hover:#3aa2e3; --accent-dim:#d3ecfb; --accent-text:#ffffff;
+}
+html[data-mode="light"][data-accent="forest"]{
+  --accent:#2da85e; --accent-hover:#38c070; --accent-dim:#c8f0dc; --accent-text:#ffffff;
+}
+html[data-mode="light"][data-accent="ocean"]{
+  --accent:#1f8fd6; --accent-hover:#3aa2e3; --accent-dim:#d3ecfb; --accent-text:#ffffff;
+}
+html[data-mode="light"][data-accent="rose"]{
+  --accent:#e8558f; --accent-hover:#ee76a4; --accent-dim:#fce4ef; --accent-text:#ffffff;
+}
+html[data-mode="light"][data-accent="beige"]{
+  --accent:#b5772e; --accent-hover:#c68c46; --accent-dim:#f0dcc0; --accent-text:#ffffff;
 }
 
 *{box-sizing:border-box;}
@@ -139,6 +161,10 @@ input{font-family:inherit; color:inherit;}
 .btn.primary:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
 
 /* Theme menu now uses CSS theme variables so it matches the active theme */
+.theme-base-toggle-bar{
+  display:flex; background:var(--bg-3); border-radius:6px; padding:2px; gap:0;
+  margin:0 0 6px 0;
+}
 .theme-menu{
   display:none; position:absolute; top:38px; right:0;
   background:var(--bg-2); border:1px solid var(--line); border-radius:8px;
@@ -181,14 +207,17 @@ input{font-family:inherit; color:inherit;}
 #theme-menu.scrollable{ max-height:380px; overflow-y:auto; }
 
 /* Custom theme item: shows edit/delete on hover */
-.theme-option-custom{ position:relative; }
+.theme-option-custom{ position:relative; padding-right:8px; }
 .theme-option-custom .custom-actions{
-  display:none; align-items:center; gap:3px; margin-left:auto;
+  display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%);
+  align-items:center; gap:2px;
+  background:var(--bg-2); padding:2px 4px; border-radius:4px; box-shadow:0 1px 4px rgba(0,0,0,0.2);
 }
 .theme-option-custom:hover .custom-actions{ display:flex; }
+.theme-option-custom:hover .theme-check{ opacity:0 !important; }
 .custom-action-btn{
-  background:none; border:none; padding:2px 5px; border-radius:4px;
-  cursor:pointer; color:var(--text-2); font-size:10px;
+  background:none; border:none; padding:4px; border-radius:4px;
+  cursor:pointer; color:var(--text-2); display:flex; align-items:center; justify-content:center;
   transition:background .1s, color .1s;
 }
 .custom-action-btn:hover{ background:var(--bg-3); color:var(--text-0); }
@@ -202,7 +231,7 @@ input{font-family:inherit; color:inherit;}
 #custom-theme-overlay.open{ display:flex; }
 #custom-theme-modal{
   background:var(--bg-1); border:1px solid var(--line); border-radius:14px;
-  padding:0; width:680px; max-width:96vw; max-height:88vh;
+  padding:0; width:720px; max-width:97vw; max-height:92vh;
   box-shadow:0 30px 80px rgba(0,0,0,0.6);
   display:flex; flex-direction:column; overflow:hidden;
 }
@@ -221,7 +250,7 @@ input{font-family:inherit; color:inherit;}
 
 /* Left: controls */
 .ctm-controls{
-  width:210px; flex:0 0 210px; padding:20px 18px;
+  width:220px; flex:0 0 220px; padding:20px 18px;
   border-right:1px solid var(--line);
   display:flex; flex-direction:column; gap:18px; overflow-y:auto;
 }
@@ -259,13 +288,14 @@ input{font-family:inherit; color:inherit;}
 
 /* Right: live preview */
 .ctm-preview-wrap{
-  flex:1; min-width:0; padding:16px; display:flex; flex-direction:column;
+  flex:1; min-width:0; padding:16px 20px; display:flex; flex-direction:column;
   background:var(--bg-0);
   overflow:hidden;
 }
-.ctm-preview-label{ font-size:10.5px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
+.ctm-preview-label{ font-size:10.5px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; flex:0 0 auto; }
 #ctm-preview{
-  flex:1; border-radius:8px; overflow:hidden;
+  flex:1; min-height:0;
+  border-radius:8px; overflow:hidden;
   border:1px solid var(--line-soft);
   display:flex; flex-direction:column;
   box-shadow:0 4px 20px rgba(0,0,0,0.3);
@@ -279,22 +309,23 @@ input{font-family:inherit; color:inherit;}
 .mp-sep{ width:1px; height:16px; opacity:0.3; margin:0 2px; }
 .mp-btn{ height:16px; border-radius:3px; opacity:0.6; }
 .mp-btn.accent{ opacity:1; }
-.mp-body{ display:flex; flex:1; min-height:0; }
+.mp-body{ display:flex; flex:1; min-height:0; overflow:hidden; background:var(--mp-cvoid); }
 .mp-rail{ width:32px; flex:0 0 32px; padding:6px 4px; display:flex; flex-direction:column; gap:5px; border-right:1px solid; }
 .mp-tool{ width:24px; height:20px; border-radius:4px; opacity:0.35; }
 .mp-tool.active{ opacity:1; }
-.mp-canvas-wrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:10px; }
+.mp-canvas-wrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:12px; background:var(--mp-cvoid); overflow:hidden; }
 .mp-canvas{
-  width:80%; height:80%; border-radius:4px;
-  position:relative; box-shadow:0 2px 12px rgba(0,0,0,0.25);
+  height:100%; aspect-ratio:1/1; border-radius:4px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.25); overflow:hidden;
+  background:#fff; flex: 0 0 auto;
 }
-.mp-canvas svg{ width:100%; height:100%; }
+.mp-canvas svg{ width:100%; height:100%; display:block; }
 
 .ctm-footer{
-  display:flex; align-items:center; justify-content:flex-end; gap:10px;
+  display:flex; align-items:center; justify-content:flex-end; gap:8px;
   padding:14px 22px; border-top:1px solid var(--line);
 }
-.ctm-footer button{ min-width:90px; }
+.ctm-footer .btn{ min-width:80px; justify-content:center; }
 
 .btn.icon-only{ padding:7px; }
 .btn:disabled{ opacity:0.35; cursor:not-allowed; }
@@ -429,7 +460,11 @@ input{font-family:inherit; color:inherit;}
 #hud{ display:none; }
 
 /* RIGHT PANEL hidden */
-#rightpanel{ display:none; }
+#rightpanel{ display:none !important; }
+
+.empty-state{
+  color:var(--text-2); font-size:12px; text-align:center; padding:30px 10px; line-height:1.6;
+}
 
 .panel-section{
   border-bottom:1px solid var(--line-soft);
@@ -667,11 +702,11 @@ select.input{ font-family:var(--sans); }
     <div class="divider"></div>
     <!-- Coord + zoom HUD inline in topbar -->
     <div id="topbar-hud" style="display:flex;align-items:center;gap:0;font-family:var(--mono);font-size:11px;background:var(--bg-2);border:1px solid var(--line);border-radius:6px;overflow:hidden;">
-      <div style="padding:5px 9px;border-right:1px solid var(--line);color:var(--text-1);display:flex;align-items:center;gap:5px;width:60px;">
-        <span style="color:var(--text-2);font-size:9.5px;text-transform:uppercase;letter-spacing:0.5px;">X</span><b id="hud-x" style="color:var(--text-0);font-weight:600;flex:1;text-align:right;">0</b>
+      <div style="padding:5px 9px;border-right:1px solid var(--line);color:var(--text-1);display:flex;align-items:center;gap:5px;width:65px;">
+        <span style="color:var(--text-2);font-size:9.5px;text-transform:uppercase;letter-spacing:0.5px;">X</span><b id="hud-x" style="color:var(--text-0);font-weight:600;width:34px;text-align:right;display:inline-block;flex:none;">0</b>
       </div>
-      <div style="padding:5px 9px;border-right:1px solid var(--line);color:var(--text-1);display:flex;align-items:center;gap:5px;width:60px;">
-        <span style="color:var(--text-2);font-size:9.5px;text-transform:uppercase;letter-spacing:0.5px;">Y</span><b id="hud-y" style="color:var(--text-0);font-weight:600;flex:1;text-align:right;">0</b>
+      <div style="padding:5px 9px;border-right:1px solid var(--line);color:var(--text-1);display:flex;align-items:center;gap:5px;width:65px;">
+        <span style="color:var(--text-2);font-size:9.5px;text-transform:uppercase;letter-spacing:0.5px;">Y</span><b id="hud-y" style="color:var(--text-0);font-weight:600;width:34px;text-align:right;display:inline-block;flex:none;">0</b>
       </div>
       <div style="padding:5px 6px;display:flex;align-items:center;gap:4px;">
         <button id="hud-zoom-out" style="background:none;border:none;color:var(--text-1);cursor:pointer;padding:1px 3px;font-size:13px;">−</button>
@@ -694,31 +729,6 @@ select.input{ font-family:var(--sans); }
           Theme
         </button>
         <div id="theme-menu" class="theme-menu">
-          <button class="theme-option" data-theme="dark"><span class="theme-swatch" style="background:#1b1d21"></span>Dark
-            <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="theme-option" data-theme="light"><span class="theme-swatch" style="background:#ffffff"></span>Light
-            <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="theme-option" data-theme="rose"><span class="theme-swatch" style="background:#f472a8"></span>Rose pink
-            <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="theme-option" data-theme="beige"><span class="theme-swatch" style="background:#b5772e"></span>Beige
-            <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="theme-option" data-theme="forest"><span class="theme-swatch" style="background:#4fd68c"></span>Forest
-            <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="theme-option" data-theme="ocean"><span class="theme-swatch" style="background:#329eea"></span>Ocean
-            <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <!-- custom themes injected here by JS -->
-          <div id="custom-theme-list"></div>
-          <div class="theme-divider"></div>
-          <button class="theme-add-btn" id="btn-custom-theme">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            Custom theme...
-          </button>
         </div>
       </div>
       <button class="btn primary" id="btn-export">
@@ -759,46 +769,43 @@ select.input{ font-family:var(--sans); }
               <button class="ctm-base-btn" data-base="light">Light</button>
             </div>
           </div>
-          <div class="ctm-field" style="font-size:11px;color:var(--text-2);line-height:1.5">
-            The accent colour drives the entire palette &mdash; backgrounds, borders, and text are auto-generated for legibility.
-          </div>
         </div>
         <div class="ctm-preview-wrap">
           <div class="ctm-preview-label">Live preview</div>
           <div id="ctm-preview">
-            <div class="mp-topbar" style="background:var(--mp-bg1,#1e222a);border-color:var(--mp-line,#2e3748);gap:4px;">
-              <div style="width:12px;height:12px;border-radius:50%;border:1px solid var(--mp-accent,#4a90e2);"></div>
-              <div class="mp-brand" style="background:var(--mp-text0,#fff);width:22px;"></div>
-              <div style="width:36px;height:12px;background:var(--mp-bg0,#14171d);border-radius:3px;margin-left:4px;"></div>
-              <div style="width:40px;height:16px;background:var(--mp-bg1,#1e222a);border-radius:3px;border:1px solid var(--mp-line,#2e3748);margin-left:4px;"></div>
-              <div class="mp-sep" style="background:var(--mp-line,#2e3748);"></div>
-              <div class="mp-btn" style="background:var(--mp-text1,#9cb6d1);width:16px;"></div>
-              <div class="mp-btn" style="background:var(--mp-text1,#9cb6d1);width:16px;"></div>
-              <div class="mp-sep" style="background:var(--mp-line,#2e3748);"></div>
-              <div style="display:flex;align-items:center;background:var(--mp-bg2,#252b36);border:1px solid var(--mp-line,#2e3748);border-radius:3px;height:16px;gap:2px;padding:0 2px;">
-                <div style="width:16px;height:8px;background:var(--mp-text1,#9cb6d1);opacity:0.4;border-radius:1px;"></div>
-                <div style="width:1px;height:10px;background:var(--mp-line,#2e3748);"></div>
-                <div style="width:16px;height:8px;background:var(--mp-text1,#9cb6d1);opacity:0.4;border-radius:1px;"></div>
-                <div style="width:1px;height:10px;background:var(--mp-line,#2e3748);"></div>
-                <div style="width:24px;height:8px;background:var(--mp-text1,#9cb6d1);opacity:0.4;border-radius:1px;"></div>
-              </div>
-              <div style="flex:1"></div>
-              <div class="mp-btn" style="background:var(--mp-text1,#9cb6d1);width:32px;"></div>
-              <div class="mp-btn" style="background:var(--mp-text1,#9cb6d1);width:32px;"></div>
-              <div class="mp-btn accent" style="background:var(--mp-accent,#4a90e2);width:45px;border-radius:4px;"></div>
-            </div>
-            <div class="mp-body" style="background:var(--mp-cvoid,#0b121a);">
-              <div class="mp-rail" style="background:var(--mp-bg1,#1e222a);border-color:var(--mp-line,#2e3748);gap:4px;">
-                <div class="mp-tool active" style="background:var(--mp-accent,#4a90e2);"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
-                <div style="height:1px;background:var(--mp-line,#2e3748);margin:2px 0;"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
-                <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
+
+            <!-- ===== MINI BODY ===== -->
+            <div class="mp-body">
+              <!-- Tool Rail -->
+              <div class="mp-rail" style="background:var(--mp-bg1);border-color:var(--mp-line);width:20px;flex:0 0 20px;padding:3px 2px;gap:2px;align-items:center;">
+                <!-- Select (active) — accent-dim bg + accent-colored icon, matching .tool.active -->
+                <div style="width:13px;height:13px;display:flex;align-items:center;justify-content:center;border-radius:2px;background:var(--mp-accent-dim);flex:0 0 13px;">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M5 3L19 12L12 13L9 20L5 3Z" stroke="var(--mp-accent)" stroke-width="1.8" stroke-linejoin="round" fill="var(--mp-accent)" fill-opacity="0.15"/></svg>
+                </div>
+                <!-- Rect -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><rect x="4" y="6" width="16" height="12" rx="1.5" stroke="var(--mp-text1)" stroke-width="2"/></svg>
+                <!-- Ellipse -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><ellipse cx="12" cy="12" rx="8" ry="6" stroke="var(--mp-text1)" stroke-width="2"/></svg>
+                <!-- Circle -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="12" cy="12" r="7.5" stroke="var(--mp-text1)" stroke-width="2"/></svg>
+                <!-- Line -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M5 19L19 5" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
+                <!-- Polygon -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M12 3L21 9.5L17.5 20H6.5L3 9.5L12 3Z" stroke="var(--mp-text1)" stroke-width="2" stroke-linejoin="round"/></svg>
+                <!-- Pen -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 17L10 8L14 14L20 5" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="17" r="1.5" fill="var(--mp-text1)"/><circle cx="20" cy="5" r="1.5" fill="var(--mp-text1)"/></svg>
+                <!-- Freehand -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 18C7 10 9 6 12 6C15 6 13 14 16 14C18 14 19 11 20 9" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
+                <!-- Text -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M6 5H18M12 5V19M9 19H15" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round"/></svg>
+                <!-- sep -->
+                <div style="height:1px;width:11px;background:var(--mp-line);margin:1px 0;opacity:0.6;flex:0 0 1px;"></div>
+                <!-- Zoom in -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="10.5" cy="10.5" r="6.5" stroke="var(--mp-text1)" stroke-width="2"/><path d="M20 20L15 15M10.5 8V13M8 10.5H13" stroke="var(--mp-text1)" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <!-- Zoom out -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><circle cx="10.5" cy="10.5" r="6.5" stroke="var(--mp-text1)" stroke-width="2"/><path d="M20 20L15 15M8 10.5H13" stroke="var(--mp-text1)" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <!-- Zoom fit -->
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="opacity:0.4;flex:0 0 13px;"><path d="M4 9V4H9M20 9V4H15M4 15V20H9M20 15V20H15" stroke="var(--mp-text1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
               <div class="mp-canvas-wrap">
                 <div class="mp-canvas" style="background:var(--mp-bg1,#ffffff);">
@@ -806,6 +813,7 @@ select.input{ font-family:var(--sans); }
                     <rect x="15" y="15" width="75" height="50" rx="4" fill="none" stroke-width="2" style="stroke:var(--mp-accent,#4a90e2);"/>
                     <ellipse cx="148" cy="55" rx="32" ry="24" style="fill:var(--mp-adim,#1d4669);stroke:var(--mp-accent,#4a90e2);" stroke-width="1.5" fill="none"/>
                     <line x1="15" y1="95" x2="185" y2="115" stroke-width="2" style="stroke:var(--mp-text1,#9cb6d1);"/>
+                    <rect x="15" y="15" width="75" height="50" rx="4" fill="none" stroke-width="1" stroke-dasharray="3,2" style="stroke:var(--mp-accent,#4a90e2);opacity:0.5"/>
                   </svg>
                 </div>
               </div>
@@ -887,15 +895,7 @@ select.input{ font-family:var(--sans); }
           <svg id="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
       </div>
-      <div id="hud">
-        <div class="seg"><span class="lbl">X</span><b id="hud-x">0</b></div>
-        <div class="seg"><span class="lbl">Y</span><b id="hud-y">0</b></div>
-        <div class="seg">
-          <button id="hud-zoom-out">−</button>
-          <b id="hud-zoom">100%</b>
-          <button id="hud-zoom-in">+</button>
-        </div>
-      </div>
+
     </div>
 
     <!-- RIGHT PANEL -->
@@ -904,7 +904,7 @@ select.input{ font-family:var(--sans); }
 
       <div class="panel-section" id="panel-props">
         <div class="panel-title" id="panel-props-title">Design</div>
-        <div id="props-empty" style="display:none"></div>
+        <div id="props-empty" class="empty-state" style="display:none">Select an object to edit its properties, or pick a tool and draw on the canvas.</div>
         <div id="props-content" style="display:none">
 
           <div class="row xy-grid">
@@ -2388,8 +2388,9 @@ function updatePropsPanel(){
   // when a group is actually selected — no point showing buttons that can't do anything.
   $('#btn-group').style.display = objs.length>=2 ? 'block' : 'none';
   $('#btn-ungroup').style.display = objs.some(o=>o.type==='group') ? 'block' : 'none';
+
   const groupRow = $('#btn-group').closest('.btn-row');
-  groupRow.style.display = (objs.length>=2 || objs.some(o=>o.type==='group')) ? 'flex' : 'none';
+  if (groupRow) groupRow.style.display = (objs.length>=2 || objs.some(o=>o.type==='group')) ? 'flex' : 'none';
 
   $('#props-empty').style.display='none';
   $('#props-content').style.display='block';
@@ -4371,33 +4372,121 @@ function saveCustomThemes(){
   try{ localStorage.setItem('vecta-custom-themes',JSON.stringify(customThemes)); }catch(e){}
 }
 
-function renderCustomThemeList(){
-  const list=$('#custom-theme-list');
-  if(!list) return;
-  list.innerHTML='';
-  customThemes.forEach(t=>{
-    const btn=document.createElement('div');
-    btn.className='theme-option theme-option-custom';
-    btn.dataset.theme='custom-'+t.id;
-    btn.innerHTML=`
+/* predefinedAccents is built inline in renderThemeMenu */
+
+function renderThemeMenu(){
+  const menu = $('#theme-menu');
+  if(!menu) return;
+  menu.innerHTML = '';
+
+  const curMode = getCurrentMode();
+  const curAccent = getCurrentAccent();
+
+  // === Dark / Light toggle at top ===
+  const toggleBar = document.createElement('div');
+  toggleBar.className = 'theme-base-toggle-bar';
+  ['dark','light'].forEach(mode => {
+    const isActive = curMode === mode;
+    const btn = document.createElement('button');
+    btn.style.cssText = `flex:1;padding:5px 0;background:${isActive?'var(--accent-dim)':'transparent'};border:none;border-radius:4px;cursor:pointer;color:${isActive?'var(--accent)':'var(--text-1)'};font-size:11.5px;font-weight:${isActive?'700':'500'};font-family:inherit;transition:background .12s;display:flex;align-items:center;justify-content:center;gap:6px;`;
+    if(mode === 'dark') {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>Dark`;
+    } else {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9" stroke-dasharray="1.5 2" stroke-width="2.2"/></svg>Light`;
+    }
+    btn.onclick = (e) => { e.stopPropagation(); applyMode(mode); renderThemeMenu(); };
+    toggleBar.appendChild(btn);
+  });
+  menu.appendChild(toggleBar);
+
+  // Divider below toggle
+  const topDiv = document.createElement('div');
+  topDiv.style.cssText = 'height:1px;background:var(--line);margin:4px 0 6px 0;';
+  menu.appendChild(topDiv);
+
+  
+  // Create a container for the themes list
+  const list = document.createElement('div');
+  list.className = 'theme-options-list';
+
+  const predefinedAccents = [
+    {id:'default', name:'Default', color:'#4fb2e8'},
+    {id:'forest',  name:'Forest',  color:'#4fd68c'},
+    {id:'ocean',   name:'Ocean',   color:'#329eea'},
+    {id:'rose',    name:'Rose',    color:'#e8558f'},
+    {id:'beige',   name:'Beige',   color:'#c98840'},
+  ];
+
+  const totalThemes = predefinedAccents.length + customThemes.length;
+  
+  if (totalThemes <= 8) {
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '2px';
+  } else if (totalThemes <= 21) {
+    const rows = Math.ceil(totalThemes / 2);
+    list.style.display = 'grid';
+    list.style.gridTemplateColumns = '1fr 1fr';
+    list.style.gridAutoFlow = 'column';
+    list.style.gridTemplateRows = `repeat(${rows}, auto)`;
+    list.style.gap = '2px';
+    list.style.width = '328px';
+  } else {
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '2px';
+    list.style.maxHeight = '240px';
+    list.style.overflowY = 'auto';
+  }
+  
+  predefinedAccents.forEach(t => {
+    const isActive = curAccent === t.id;
+    const btn = document.createElement('button');
+    btn.className = 'theme-option' + (isActive ? ' active' : '');
+    btn.dataset.theme = t.id;
+    btn.innerHTML = `<span class="theme-swatch" style="background:${t.color}"></span><span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.name}</span><svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    btn.onclick = (e) => { e.stopPropagation(); applyAccent(t.id); renderThemeMenu(); menu.classList.remove('open'); };
+    list.appendChild(btn);
+  });
+  
+  customThemes.forEach(t => {
+    const btn = document.createElement('div');
+    const isActive = (document.documentElement.getAttribute('data-theme') === 'custom-'+t.id);
+    btn.className = 'theme-option theme-option-custom' + (isActive ? ' active' : '');
+    btn.dataset.theme = 'custom-'+t.id;
+    btn.innerHTML = `
       <span class="theme-swatch" style="background:${t.accent}"></span>
-      <span style="flex:1;text-align:left">${t.name}</span>
+      <span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.name}</span>
       <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="custom-actions">
-        <button class="custom-action-btn" data-edit="${t.id}" title="Edit">Edit</button>
-        <button class="custom-action-btn" data-delete="${t.id}" title="Delete" style="color:#e8664f">Del</button>
+        <button class="custom-action-btn" data-edit="${t.id}" title="Edit"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/><path d="M15 5l4 4"/></svg></button>
+        <button class="custom-action-btn" data-delete="${t.id}" title="Delete" style="color:#e8664f"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg></button>
       </div>`;
-    btn.addEventListener('click',ev=>{
+    btn.addEventListener('click', ev => {
       if(ev.target.closest('[data-edit]')){ ev.stopPropagation(); openCustomThemeModal(t.id); return; }
       if(ev.target.closest('[data-delete]')){ ev.stopPropagation(); deleteCustomTheme(t.id); return; }
       applyTheme('custom-'+t.id);
-      $('#theme-menu').classList.remove('open');
+      menu.classList.remove('open');
     });
     list.appendChild(btn);
   });
-  // scrollable when total > 10
-  const total=6+customThemes.length;
-  $('#theme-menu').classList.toggle('scrollable',total>10);
+
+  menu.appendChild(list);
+  
+  // Divider (separates the theme options list from the custom builder button)
+  const divider = document.createElement('div');
+  divider.style.height = '1px';
+  divider.style.background = 'var(--line)';
+  divider.style.margin = '6px 2px';
+  menu.appendChild(divider);
+  
+  // Add button — styled with muted text and a hollow dashed border for visual separation
+  const addBtn = document.createElement('button');
+  addBtn.className = 'theme-option';
+  addBtn.style.fontStyle = 'normal';
+  addBtn.innerHTML = `<span style="width:15px;height:15px;flex:0 0 15px;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="13" height="13" stroke="var(--text-2)" stroke-width="3.5" stroke-linecap="round" fill="none"><path d="M12 5v14m-7-7h14"/></svg></span><span style="flex:1;text-align:left;color:var(--text-2);font-weight:500;">Custom theme...</span>`;
+  addBtn.onclick = (e) => { e.stopPropagation(); openCustomThemeModal(null); };
+  menu.appendChild(addBtn);
 }
 
 function deleteCustomTheme(id){
@@ -4411,27 +4500,54 @@ function deleteCustomTheme(id){
   if(el) el.remove();
   // if active, fall back to dark
   const cur=document.documentElement.getAttribute('data-theme');
-  if(cur==='custom-'+id){ applyTheme('dark'); }
-  renderCustomThemeList();
-  updateThemeOptionListeners();
+  if(cur==='custom-'+id){
+    document.documentElement.removeAttribute('data-theme');
+    applyMode(getCurrentMode()); applyAccent(getCurrentAccent());
+    try{ localStorage.removeItem('vecta-theme-full'); }catch(e){}
+  }
+  renderThemeMenu();
 }
 
+/* Get current mode and accent independently */
+function getCurrentMode(){
+  return document.documentElement.getAttribute('data-mode') || 'dark';
+}
+function getCurrentAccent(){
+  return document.documentElement.getAttribute('data-accent') || 'default';
+}
+
+function applyMode(mode){
+  if(mode==='dark') document.documentElement.removeAttribute('data-mode');
+  else document.documentElement.setAttribute('data-mode', mode);
+  // Also clear any custom data-theme so mode/accent take over
+  if(document.documentElement.getAttribute('data-theme')?.startsWith('custom-')){
+    document.documentElement.removeAttribute('data-theme');
+  }
+  try{ localStorage.setItem('vecta-mode', mode); localStorage.removeItem('vecta-theme-full'); }catch(e){}
+  if(typeof drawRulers==='function') requestAnimationFrame(drawRulers);
+}
+function applyAccent(accent){
+  if(accent==='default') document.documentElement.removeAttribute('data-accent');
+  else document.documentElement.setAttribute('data-accent', accent);
+  // Also clear any custom data-theme so mode/accent take over
+  if(document.documentElement.getAttribute('data-theme')?.startsWith('custom-')){
+    document.documentElement.removeAttribute('data-theme');
+  }
+  try{ localStorage.setItem('vecta-accent', accent); localStorage.removeItem('vecta-theme-full'); }catch(e){}
+  if(typeof drawRulers==='function') requestAnimationFrame(drawRulers);
+}
+
+/* Legacy applyTheme — kept for custom themes which are still data-theme based */
 function applyTheme(name){
-  if(name==='dark') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', name);
-  try{ localStorage.setItem('vecta-theme', name); }catch(e){}
-  $$('.theme-option').forEach(btn=>
-    btn.classList.toggle('active', btn.dataset.theme===name));
-  $$('#custom-theme-list .theme-option-custom').forEach(btn=>
-    btn.classList.toggle('active', btn.dataset.theme===name));
-  drawRulers();
-  renderGuides();
-}
-
-function updateThemeOptionListeners(){
-  $$('.theme-option:not(.theme-option-custom)').forEach(btn=>{
-    btn.onclick=()=>{ applyTheme(btn.dataset.theme); $('#theme-menu').classList.remove('open'); };
-  });
+  if(name && name.startsWith('custom-')){
+    // Custom themes: use data-theme only (they're self-contained)
+    document.documentElement.setAttribute('data-theme', name);
+    // Clear mode/accent so the custom theme's full CSS takes over
+    document.documentElement.removeAttribute('data-mode');
+    document.documentElement.removeAttribute('data-accent');
+    try{ localStorage.setItem('vecta-theme-full', name); }catch(e){}
+  }
+  drawRulers(); renderGuides();
 }
 
 $('#btn-theme').addEventListener('click', (e)=>{
@@ -4439,13 +4555,11 @@ $('#btn-theme').addEventListener('click', (e)=>{
   $('#theme-menu').classList.toggle('open');
 });
 $('#theme-menu').addEventListener('click', e=>e.stopPropagation());
-$$('.theme-option').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    applyTheme(btn.dataset.theme);
-    $('#theme-menu').classList.remove('open');
-  });
+window.addEventListener('mousedown', (e)=>{ 
+  if(!e.target.closest('#theme-menu') && !e.target.closest('#btn-theme')){
+    $('#theme-menu').classList.remove('open'); 
+  }
 });
-window.addEventListener('click', ()=>{ $('#theme-menu').classList.remove('open'); });
 
 // ---- Custom theme builder modal ----
 let ctmEditingId=null; // null=new, string=editing existing
@@ -4465,11 +4579,21 @@ function openCustomThemeModal(editId){
     updateCtmBaseButtons();
   } else {
     $('#ctm-name').value='';
-    const defaultAccent='#4a90e2';
+    // Pre-populate from current accent/mode
+    const curAccentId = getCurrentAccent();
+    const accentColors = {
+      'default':'#4fb2e8','forest':'#4fd68c','ocean':'#329eea','rose':'#e8558f','beige':'#c98840'
+    };
+    let defaultAccent = accentColors[curAccentId] || '#4fb2e8';
+    let defaultBase = getCurrentMode();
+    if (document.documentElement.getAttribute('data-theme')?.startsWith('custom-')) {
+      const ct = customThemes.find(x => 'custom-'+x.id === document.documentElement.getAttribute('data-theme'));
+      if(ct) { defaultAccent = ct.accent; defaultBase = ct.base; }
+    }
     $('#ctm-accent-input').value=defaultAccent;
     ctmColorDisplay.style.background=defaultAccent;
     $('#ctm-hex').textContent=defaultAccent;
-    ctmBase='dark';
+    ctmBase=defaultBase;
     updateCtmBaseButtons();
   }
   updateCtmPreview();
@@ -4504,7 +4628,8 @@ if($('#ctm-cancel')) $('#ctm-cancel').addEventListener('click',()=>{ $('#custom-
 if($('#ctm-cancel-x')) $('#ctm-cancel-x').addEventListener('click',()=>{ $('#custom-theme-overlay').classList.remove('open'); });
 $('#custom-theme-overlay').addEventListener('click',e=>{ if(e.target===$('#custom-theme-overlay')) $('#custom-theme-overlay').classList.remove('open'); });
 if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
-  const name=$('#ctm-name').value.trim()||'Custom';
+  const name=$('#ctm-name').value.trim();
+  if(!name){ $('#ctm-name').focus(); $('#ctm-name').style.borderColor='var(--danger)'; setTimeout(()=>{ $('#ctm-name').style.borderColor=''; },1500); return; }
   const accent=$('#ctm-accent-input').value;
   const palette=generatePaletteFromAccent(accent,ctmBase);
   if(ctmEditingId){
@@ -4516,7 +4641,7 @@ if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
     injectCustomThemeStyle(id,palette);
   }
   saveCustomThemes();
-  renderCustomThemeList();
+  renderThemeMenu();
   const applyId=ctmEditingId||(customThemes[customThemes.length-1].id);
   applyTheme('custom-'+applyId);
   $('#custom-theme-overlay').classList.remove('open');
@@ -4525,11 +4650,19 @@ if($('#btn-custom-theme')) $('#btn-custom-theme').addEventListener('click',e=>{ 
 
 function initTheme(){
   loadCustomThemes();
-  renderCustomThemeList();
-  updateThemeOptionListeners();
-  let saved='dark';
-  try{ saved=localStorage.getItem('vecta-theme')||'dark'; }catch(e){}
-  applyTheme(saved);
+  let savedMode='dark', savedAccent='forest', savedFull=null;
+  try{
+    savedMode = localStorage.getItem('vecta-mode')||'dark';
+    savedAccent = localStorage.getItem('vecta-accent')||'forest';
+    savedFull = localStorage.getItem('vecta-theme-full')||null;
+  }catch(e){}
+  if(savedFull && savedFull.startsWith('custom-')){
+    applyTheme(savedFull);
+  } else {
+    applyMode(savedMode);
+    applyAccent(savedAccent);
+  }
+  renderThemeMenu();
 }
 
 // ================= INIT =================
@@ -4538,14 +4671,18 @@ function init(){
   initTheme();
   applyCanvasFrame();
   syncCanvasInputs();
-  zoomToFit();
   renderAll();
   pushHistory();
   updateUndoRedoButtons();
   setTool('select');
-  // safety net: if the very first drawRulers() call ran before layout settled
-  // (container still at its default size), this retry after layout catches it
-  requestAnimationFrame(drawRulers);
+  // zoomToFit must run AFTER the browser has laid out the DOM,
+  // otherwise getBoundingClientRect() returns 0×0 and the page
+  // ends up at (-20px,-15px) at 5% zoom — completely off-screen.
+  requestAnimationFrame(() => {
+    zoomToFit();
+    renderSelection();
+    drawRulers();
+  });
 }
 
 window.addEventListener('resize', ()=>{ drawRulers(); });
