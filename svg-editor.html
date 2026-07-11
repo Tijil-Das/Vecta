@@ -16,6 +16,7 @@
   --bg-3:#2e3136;
   --line:#383b41;
   --line-soft:#2f3237;
+  --grid-line:#383b41;
   --text-0:#eceef1;
   --text-1:#a8adb5;
   --text-2:#71767f;
@@ -28,7 +29,7 @@
   --mono:'SF Mono', 'JetBrains Mono', Consolas, Menlo, monospace;
   --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --radius:6px;
-  --canvas-void:#1b1d21; /* the area outside the white page, behind the ruler/grid */
+  --canvas-void:#1b1d21;
 }
 
 
@@ -339,8 +340,8 @@ input{font-family:inherit; color:inherit;}
   overflow:hidden;
   cursor:default;
   background-image:
-    linear-gradient(var(--line-soft) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size:20px 20px;
   background-position: var(--gx,0) var(--gy,0);
 }
@@ -4267,41 +4268,31 @@ function generateDarkPalette(accentHex){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
 
-  // Background chroma: generous scaling so the whole UI carries the hue.
-  // Minimum 10% even for desaturated colors so there's always a visible vibe.
-  const bgS = clamp(s * 0.42, 10, 28);
+  // Background chroma — same formula used by both modes for true symmetry.
+  const bgS = clamp(s * 0.55, 15, 38);
 
-  // Accent: vivid & high-contrast on dark backgrounds
   const aL = clamp(l, 54, 72);
   const aS = clamp(s, 60, 92);
   const accent      = hslToHex(h, aS, aL);
   const accentHover = hslToHex(h, aS, clamp(aL + 9, 62, 83));
-  const accentDim   = hslToHex(h, clamp(aS * 0.55, 28, 58), clamp(aL * 0.28, 11, 22));
+  const accentDim   = hslToHex(h, clamp(aS*0.55, 28, 58), clamp(aL*0.28, 11, 22));
 
   return {
-    // Outer shell — deepest, most saturated dark
-    bg0: hslToHex(h, bgS,          9),
-    // Panels / sidebar
-    bg1: hslToHex(h, bgS * 0.92,  13),
-    // Inputs, hover backgrounds
-    bg2: hslToHex(h, bgS * 0.82,  17),
-    // Active / pressed states
-    bg3: hslToHex(h, bgS * 0.75,  22),
-    // Borders
-    line:     hslToHex(h, bgS * 0.68, 27),
-    // Subtle dividers
-    lineSoft: hslToHex(h, bgS * 0.60, 19),
-    // Primary text — very slightly tinted for warmth
-    text0: hslToHex(h, clamp(s * 0.08, 2, 7),  93),
-    // Secondary text — noticeably tinted
-    text1: hslToHex(h, clamp(s * 0.28, 7, 22), 65),
-    // Muted / placeholder text
-    text2: hslToHex(h, clamp(s * 0.20, 5, 16), 44),
+    bg0:      hslToHex(h, bgS,        8),   // deepest outer shell / canvas-void area
+    bg1:      hslToHex(h, bgS*0.90,  12),   // topbar, panels, sidebar
+    bg2:      hslToHex(h, bgS*0.82,  17),   // inputs, hover backgrounds
+    bg3:      hslToHex(h, bgS*0.75,  22),   // pressed / active states
+    line:     hslToHex(h, bgS*0.68,  27),
+    lineSoft: hslToHex(h, bgS*0.58,  19),
+    // Grid: whisper-quiet lines — a step above canvas-void, not a full tone jump
+    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), 15),
+    text0: hslToHex(h, clamp(s*0.08, 2,  7), 93),
+    text1: hslToHex(h, clamp(s*0.28, 7, 22), 65),
+    text2: hslToHex(h, clamp(s*0.20, 5, 16), 44),
     accent, accentHover, accentDim,
     accentText: contrastText(accent),
     danger: '#e8664f', ok: '#5ec98f',
-    // Canvas void (outer drawing area) — even darker
-    canvasVoid: hslToHex(h, bgS * 1.08, 6),
+    canvasVoid: hslToHex(h, bgS*1.05, 6),
   };
 }
 
@@ -4309,40 +4300,38 @@ function generateLightPalette(accentHex){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
 
-  // Light backgrounds need more saturation than you'd think to
-  // actually look tinted — minimum 7% so even gray accents have a vibe.
-  const bgS = clamp(s * 0.38, 7, 24);
+  // Same bgS formula as dark mode — identical saturation strength.
+  const bgS = clamp(s * 0.55, 15, 38);
 
-  // Accent: drops to readable range on white backgrounds
+  // Accent clamped to readable range on light bg
   const aL = clamp(l, 28, 50);
   const aS = clamp(s, 58, 88);
   const accent      = hslToHex(h, aS, aL);
   const accentHover = hslToHex(h, aS, clamp(aL + 9, 36, 60));
-  // Accent dim: a saturated light wash (button hover, selection bg)
-  const accentDim   = hslToHex(h, clamp(aS * 0.42, 18, 46), clamp(106 - aL * 0.22, 88, 96));
+  const accentDim   = hslToHex(h, clamp(aS*0.42, 18, 46), clamp(106 - aL*0.22, 86, 95));
 
+  // PERCEPTUAL SYMMETRY:
+  // Dark bg levels:  8% → 12% → 17% → 22%   (from darkest to lightest)
+  // Light bg levels: 82% → 87% → 91% → 86%   (from most-tinted to least-tinted)
+  // Key insight: 92-97% HSL lightness looks almost white regardless of saturation.
+  // 82-91% is the range where color is ACTUALLY visible and matches dark-mode weight.
   return {
-    // Outer shell — distinctly tinted, not neutral gray
-    bg0: hslToHex(h, bgS,          93),
-    // Main panels — near white but with a clear tint
-    bg1: hslToHex(h, bgS * 0.30,   99),
-    // Inputs — slightly more tinted than panels
-    bg2: hslToHex(h, bgS * 0.50,   95),
-    // Hover / active — more visibly tinted
-    bg3: hslToHex(h, bgS * 0.72,   89),
-    // Borders
-    line:     hslToHex(h, bgS * 0.88,  80),
-    // Subtle dividers
-    lineSoft: hslToHex(h, bgS * 0.52,  88),
-    // Dark text — carries the hue for cohesion
-    text0: hslToHex(h, clamp(s * 0.32, 4, 16), 10),
-    text1: hslToHex(h, clamp(s * 0.22, 3, 11), 38),
-    text2: hslToHex(h, clamp(s * 0.14, 2,  7), 57),
+    bg0:      hslToHex(h, bgS,        82),  // outer shell — as tinted as dark mode's bg0
+    bg1:      hslToHex(h, bgS*0.90,  87),   // topbar, panels — strongly tinted
+    bg2:      hslToHex(h, bgS*0.82,  91),   // inputs — lighter tint
+    bg3:      hslToHex(h, bgS*0.75,  85),   // hover/active — punchy tint
+    line:     hslToHex(h, bgS*0.68,  70),
+    lineSoft: hslToHex(h, bgS*0.58,  80),
+    // Grid: whisper-quiet lines — a step below canvas-void, not a heavy mark
+    gridLine: hslToHex(h, clamp(bgS*0.25, 3, 9), 70),
+    text0: hslToHex(h, clamp(s*0.32,  4, 16), 10),
+    text1: hslToHex(h, clamp(s*0.22,  3, 11), 32),
+    text2: hslToHex(h, clamp(s*0.14,  2,  7), 50),
     accent, accentHover, accentDim,
     accentText: '#ffffff',
     danger: '#d1483a', ok: '#2f9e63',
-    // Canvas void — clearly tinted so it frames the white page
-    canvasVoid: hslToHex(h, bgS * 0.78, 85),
+    // Canvas void: clearly colored so it frames the white page strongly
+    canvasVoid: hslToHex(h, bgS*0.85, 75),
   };
 }
 
@@ -4359,7 +4348,7 @@ function applyPalette(accentHex, mode){
   if(!el){ el = document.createElement('style'); el.id = 'vecta-palette-style'; document.head.appendChild(el); }
   el.textContent = `:root{
   --bg-0:${pal.bg0}; --bg-1:${pal.bg1}; --bg-2:${pal.bg2}; --bg-3:${pal.bg3};
-  --line:${pal.line}; --line-soft:${pal.lineSoft};
+  --line:${pal.line}; --line-soft:${pal.lineSoft}; --grid-line:${pal.gridLine};
   --text-0:${pal.text0}; --text-1:${pal.text1}; --text-2:${pal.text2};
   --accent:${pal.accent}; --accent-hover:${pal.accentHover};
   --accent-dim:${pal.accentDim}; --accent-text:${pal.accentText};
