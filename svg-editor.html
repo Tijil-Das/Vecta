@@ -505,7 +505,7 @@ select.input{ font-family:var(--sans); }
     <input id="doc-name" class="doc-name" value="Untitled" spellcheck="false">
     <div style="position:relative">
       <button class="btn" id="btn-canvas-settings" title="Canvas size &amp; background">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect id="canvas-settings-swatch" x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>
         <span id="topbar-canvas-size">800 × 600</span>
         <svg viewBox="0 0 24 24" width="11" height="11" fill="none" style="margin-left:2px"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -1449,6 +1449,7 @@ function applyCanvasFrame(){
   guidesLayer.setAttribute('height', h);
   guidesLayer.setAttribute('viewBox', `0 0 ${w} ${h}`);
   $('#topbar-canvas-size').textContent = `${w} × ${h}`;
+  $('#canvas-settings-swatch').setAttribute('fill', bg);
   applyTransform();
 }
 
@@ -2585,7 +2586,12 @@ $$('#text-align-toggle button').forEach(b=>{
 // canvas settings
 $('#canvas-w').addEventListener('change', e=>{ state.canvas.w = Math.max(1, parseInt(e.target.value)||800); applyCanvasFrame(); centerStageIfNeeded(); pushHistory(); });
 $('#canvas-h').addEventListener('change', e=>{ state.canvas.h = Math.max(1, parseInt(e.target.value)||600); applyCanvasFrame(); centerStageIfNeeded(); pushHistory(); });
-$('#canvas-bg').addEventListener('input', e=>{ state.canvas.bg = e.target.value; pageBg.style.background = e.target.value; $('#canvas-bg-swatch .fill').style.background = e.target.value; });
+$('#canvas-bg').addEventListener('input', e=>{
+  state.canvas.bg = e.target.value;
+  pageBg.style.background = e.target.value;
+  $('#canvas-bg-swatch .fill').style.background = e.target.value;
+  $('#canvas-settings-swatch').setAttribute('fill', e.target.value);
+});
 $('#canvas-bg').addEventListener('change', ()=>pushHistory());
 
 function syncCanvasInputs(){
@@ -2689,7 +2695,10 @@ function onCanvasMouseDown(e){
   }
 
   if(state.tool === 'select'){
-    const allAtPoint = topLevelObjects().filter(o => o.visible && !o.locked && _isNearObject(pt, o, 0));
+    // Use a generous hit-pad (6 screen px) so thin pen paths and lines are
+    // easily clickable without needing pixel-perfect precision.
+    const hitPad = 6 / state.zoom;
+    const allAtPoint = topLevelObjects().filter(o => o.visible && !o.locked && _isNearObject(pt, o, hitPad));
     let hitId = allAtPoint.length > 0 ? allAtPoint[allAtPoint.length - 1].id : null;
     
     if(hitId){
@@ -2712,7 +2721,7 @@ function onCanvasMouseDown(e){
 
   if(state.tool === 'pen'){
     if(pt.x < 0 || pt.x > state.canvas.w || pt.y < 0 || pt.y > state.canvas.h) return;
-    handlePenClick(pt);
+    handlePenClick(pt, e);
     return;
   }
 
@@ -2853,9 +2862,13 @@ function regularPolygonPoints(sides, cx, cy, r){
   return pts;
 }
 
-function handlePenClick(pt){
+function handlePenClick(pt, e){
   if(!penObj){
-    penObj = makeObject('path', {x:pt.x, y:pt.y, w:0, h:0, points:[[0,0]], closed:false, fill:'none', stroke:(isLightColor(state.canvas.bg)?'#1c1e21':'#f4f5f7'), strokeWidth:2});
+    penObj = makeObject('path', {x:pt.x, y:pt.y, w:0, h:0, points:[[0,0]], closed:false, fill:'none',
+      // Always pick a stroke that contrasts with the canvas background.
+      // Use accent color as a fallback that's always distinct from the page white.
+      stroke: defaultTextColor(),
+      strokeWidth:2});
     state.objects.push(penObj);
     state.selectedIds=[penObj.id];
     renderObject(penObj);
