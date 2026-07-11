@@ -4247,14 +4247,14 @@ function adjustSL(hex,ds,dl){
   return hslToHex(h,Math.max(0,Math.min(100,s+ds)),Math.max(0,Math.min(100,l+dl)));
 }
 
-// ===== PRO PALETTE ALGORITHM =====
-// Generates a full UI palette from any accent hex color + mode.
-// Works for any hue — backgrounds are subtly tinted, text is
-// always readable, and the accent is boosted to the right brightness.
-function clamp01(v){ return Math.min(1, Math.max(0, v)); }
+// ===== PRO PALETTE ALGORITHM v2 =====
+// The entire UI gets the color's VIBE — backgrounds, text, lines are all
+// hue-tinted, not just the accent button. Saturation is scaled from the
+// accent's own saturation so vivid colors feel richer and muted ones feel
+// more subtle, but both clearly carry the hue.
 function clamp(v,lo,hi){ return Math.min(hi, Math.max(lo, v)); }
 
-// Relative luminance (WCAG)
+// Relative luminance (WCAG 2.1)
 function hexLuminance(hex){
   const [r,g,b] = hexToRgb(hex).map(c=>{ c/=255; return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4); });
   return 0.2126*r + 0.7152*g + 0.0722*b;
@@ -4266,60 +4266,87 @@ function contrastText(hex){
 function generateDarkPalette(accentHex){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
-  // Subtle chroma in dark backgrounds, proportional to accent saturation
-  const cs = clamp(s * 0.22, 3, 18);
-  // Boost accent to be vivid and readable on dark bg (55-72% lightness)
+
+  // Background chroma: generous scaling so the whole UI carries the hue.
+  // Minimum 10% even for desaturated colors so there's always a visible vibe.
+  const bgS = clamp(s * 0.42, 10, 28);
+
+  // Accent: vivid & high-contrast on dark backgrounds
   const aL = clamp(l, 54, 72);
-  const aS = clamp(s, 55, 92);
+  const aS = clamp(s, 60, 92);
   const accent      = hslToHex(h, aS, aL);
-  const accentHover = hslToHex(h, aS, clamp(aL + 9, 62, 84));
-  const accentDim   = hslToHex(h, clamp(aS * 0.6, 28, 55), clamp(aL * 0.3, 11, 22));
+  const accentHover = hslToHex(h, aS, clamp(aL + 9, 62, 83));
+  const accentDim   = hslToHex(h, clamp(aS * 0.55, 28, 58), clamp(aL * 0.28, 11, 22));
+
   return {
-    bg0: hslToHex(h, cs,     10),
-    bg1: hslToHex(h, cs,     13),
-    bg2: hslToHex(h, cs+1,   17),
-    bg3: hslToHex(h, cs+3,   22),
-    line:     hslToHex(h, cs+5,   27),
-    lineSoft: hslToHex(h, cs+1,   20),
-    text0: hslToHex(h, clamp(s*0.10, 0, 6), 94),
-    text1: hslToHex(h, clamp(s*0.28, 4, 18), 66),
-    text2: hslToHex(h, clamp(s*0.18, 3, 13), 45),
+    // Outer shell — deepest, most saturated dark
+    bg0: hslToHex(h, bgS,          9),
+    // Panels / sidebar
+    bg1: hslToHex(h, bgS * 0.92,  13),
+    // Inputs, hover backgrounds
+    bg2: hslToHex(h, bgS * 0.82,  17),
+    // Active / pressed states
+    bg3: hslToHex(h, bgS * 0.75,  22),
+    // Borders
+    line:     hslToHex(h, bgS * 0.68, 27),
+    // Subtle dividers
+    lineSoft: hslToHex(h, bgS * 0.60, 19),
+    // Primary text — very slightly tinted for warmth
+    text0: hslToHex(h, clamp(s * 0.08, 2, 7),  93),
+    // Secondary text — noticeably tinted
+    text1: hslToHex(h, clamp(s * 0.28, 7, 22), 65),
+    // Muted / placeholder text
+    text2: hslToHex(h, clamp(s * 0.20, 5, 16), 44),
     accent, accentHover, accentDim,
     accentText: contrastText(accent),
     danger: '#e8664f', ok: '#5ec98f',
-    canvasVoid: hslToHex(h, cs, 7),
+    // Canvas void (outer drawing area) — even darker
+    canvasVoid: hslToHex(h, bgS * 1.08, 6),
   };
 }
 
 function generateLightPalette(accentHex){
   const [ar,ag,ab] = hexToRgb(accentHex);
   const [h,s,l] = rgbToHsl(ar,ag,ab);
-  const cs = clamp(s * 0.14, 1, 9);
-  // Drop accent to be vivid and readable on light bg (28-50% lightness)
+
+  // Light backgrounds need more saturation than you'd think to
+  // actually look tinted — minimum 7% so even gray accents have a vibe.
+  const bgS = clamp(s * 0.38, 7, 24);
+
+  // Accent: drops to readable range on white backgrounds
   const aL = clamp(l, 28, 50);
-  const aS = clamp(s, 55, 88);
+  const aS = clamp(s, 58, 88);
   const accent      = hslToHex(h, aS, aL);
-  const accentHover = hslToHex(h, aS, clamp(aL + 9, 36, 62));
-  // Accent dim is a very light wash
-  const accentDim   = hslToHex(h, clamp(aS*0.40, 18, 45), clamp(104-aL*0.18, 88, 96));
+  const accentHover = hslToHex(h, aS, clamp(aL + 9, 36, 60));
+  // Accent dim: a saturated light wash (button hover, selection bg)
+  const accentDim   = hslToHex(h, clamp(aS * 0.42, 18, 46), clamp(106 - aL * 0.22, 88, 96));
+
   return {
-    bg0: hslToHex(h, cs*0.5, 95),
-    bg1: hslToHex(h, 0,     100),
-    bg2: hslToHex(h, cs*0.3, 93),
-    bg3: hslToHex(h, cs*0.6, 88),
-    line:     hslToHex(h, cs,     82),
-    lineSoft: hslToHex(h, cs*0.4, 89),
-    text0: hslToHex(h, clamp(s*0.18, 1, 8), 10),
-    text1: hslToHex(h, clamp(s*0.14, 1, 6), 40),
-    text2: hslToHex(h, clamp(s*0.10, 0, 5), 57),
+    // Outer shell — distinctly tinted, not neutral gray
+    bg0: hslToHex(h, bgS,          93),
+    // Main panels — near white but with a clear tint
+    bg1: hslToHex(h, bgS * 0.30,   99),
+    // Inputs — slightly more tinted than panels
+    bg2: hslToHex(h, bgS * 0.50,   95),
+    // Hover / active — more visibly tinted
+    bg3: hslToHex(h, bgS * 0.72,   89),
+    // Borders
+    line:     hslToHex(h, bgS * 0.88,  80),
+    // Subtle dividers
+    lineSoft: hslToHex(h, bgS * 0.52,  88),
+    // Dark text — carries the hue for cohesion
+    text0: hslToHex(h, clamp(s * 0.32, 4, 16), 10),
+    text1: hslToHex(h, clamp(s * 0.22, 3, 11), 38),
+    text2: hslToHex(h, clamp(s * 0.14, 2,  7), 57),
     accent, accentHover, accentDim,
     accentText: '#ffffff',
     danger: '#d1483a', ok: '#2f9e63',
-    canvasVoid: hslToHex(h, cs*0.5, 91),
+    // Canvas void — clearly tinted so it frames the white page
+    canvasVoid: hslToHex(h, bgS * 0.78, 85),
   };
 }
 
-// Generate palette (mode-aware) — replaces old generatePaletteFromAccent
+// Mode-aware wrapper — used by CTM preview
 function generatePaletteFromAccent(accentHex, base){
   const mode = base || _currentMode || 'dark';
   return mode === 'light' ? generateLightPalette(accentHex) : generateDarkPalette(accentHex);
@@ -4393,7 +4420,6 @@ function renderThemeMenu(){
   list.className = 'theme-options-list';
 
   const predefinedAccents = [
-    {id:'default', name:'Default', color:'#4fb2e8'},
     {id:'forest',  name:'Forest',  color:'#4fd68c'},
     {id:'ocean',   name:'Ocean',   color:'#329eea'},
     {id:'rose',    name:'Rose',    color:'#e8558f'},
@@ -4617,7 +4643,7 @@ if($('#btn-custom-theme')) $('#btn-custom-theme').addEventListener('click',e=>{ 
 
 function initTheme(){
   loadCustomThemes();
-  let savedMode='dark', savedAccentHex='#4fb2e8';
+  let savedMode='dark', savedAccentHex='#4fd68c'; // default: Forest green
   try{
     savedMode = localStorage.getItem('vecta-mode')||'dark';
     // Try new hex key first, fall back to old accent ID
