@@ -889,7 +889,7 @@ select.input{ font-family:var(--sans); }
       <div class="tool active" data-tool="select" id="tool-select-btn" title="Move / Select (V) · Double-click to toggle Lasso Mode">
         <svg id="tool-select-icon" viewBox="0 0 24 24" fill="none"><path d="M5 3L19 12L12 13L9 20L5 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="currentColor" fill-opacity="0.15"/></svg>
         <span class="kbd">V</span>
-        <span id="select-mode-badge" style="position:absolute;bottom:2px;right:2px;width:10px;height:10px;border-radius:1px;background:var(--accent);display:flex;align-items:center;justify-content:center;pointer-events:none;"></span>
+        <span id="select-mode-badge" style="position:absolute;bottom:4px;left:5px;width:7px;height:7px;box-sizing:border-box;pointer-events:none;"></span>
       </div>
       <div class="tool" data-tool="rect" title="Rectangle (R)">
         <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="6" width="16" height="12" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
@@ -3197,14 +3197,27 @@ function setTool(name){
 }
 
 function updateSelectModeBadge(){
+  const btn = $('#tool-select-btn');
   const badge = $('#select-mode-badge');
-  if(!badge) return;
+  const icon = $('#tool-select-icon');
+  if(!btn) return;
+
+  // Always show the clean original arrow cursor icon
+  if(icon && !icon.innerHTML.trim()){
+    icon.innerHTML = `<path d="M5 3L19 12L12 13L9 20L5 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="currentColor" fill-opacity="0.15"/>`;
+  }
+
   const isLasso = state.selectMode === 'lasso';
-  // Show a tiny lasso or rect icon inside the badge
-  badge.title = isLasso ? 'Lasso Mode — dbl-click to switch to Rect' : 'Rect Mode — dbl-click to switch to Lasso';
-  badge.innerHTML = isLasso
-    ? `<svg viewBox="0 0 10 10" fill="none" width="8" height="8"><path d="M5 1 C2 1 1 3 1 5 C1 8 3 9 5 9 C7 9 9 7.5 9 5.5 L6 5 L9 3" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>`
-    : `<svg viewBox="0 0 10 10" fill="none" width="8" height="8"><rect x="1" y="2" width="8" height="6" rx="0.5" stroke="#fff" stroke-width="1.2"/></svg>`;
+  btn.title = isLasso ? 'Lasso Select — double-click to switch to Rect (V)' : 'Rect Select — double-click to switch to Lasso (V)';
+
+  if(!badge) return;
+  if(isLasso){
+    // Tiny circle = lasso mode
+    badge.style.cssText = 'position:absolute;bottom:4px;left:5px;width:7px;height:7px;box-sizing:border-box;pointer-events:none;border:1.5px solid currentColor;border-radius:50%;opacity:0.55;';
+  } else {
+    // Tiny dashed square = rect mode
+    badge.style.cssText = 'position:absolute;bottom:4px;left:5px;width:7px;height:7px;box-sizing:border-box;pointer-events:none;border:1.5px dashed currentColor;border-radius:1px;opacity:0.45;';
+  }
 }
 
 // Override click behaviour for select button to separate single/double click
