@@ -2711,16 +2711,22 @@ function onCanvasMouseDown(e){
   }
 
   if(state.tool === 'pen'){
+    if(pt.x < 0 || pt.x > state.canvas.w || pt.y < 0 || pt.y > state.canvas.h) return;
     handlePenClick(pt);
     return;
   }
 
   if(['rect','ellipse','circle','line','polygon','freehand'].includes(state.tool)){
+    if(pt.x < 0 || pt.x > state.canvas.w || pt.y < 0 || pt.y > state.canvas.h) return;
     startDrawDrag(pt);
     return;
   }
 
   if(state.tool === 'text'){
+    if(pt.x < 0 || pt.x > state.canvas.w || pt.y < 0 || pt.y > state.canvas.h) {
+      setTool('select');
+      return;
+    }
     createTextAt(pt);
     setTool('select');
     return;
