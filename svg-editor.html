@@ -906,21 +906,11 @@ select.input{ font-family:var(--sans); }
         <svg viewBox="0 0 24 24" fill="none"><path d="M5 19L19 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <span class="kbd">L</span>
       </div>
-      <div class="tool" data-tool="polygon" title="Polygon (P)" style="position:relative;">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L21 9.5L17.5 20H6.5L3 9.5L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <div class="tool" data-tool="polygon" title="Polygon (P)">
+        <svg viewBox="0 0 24 24" fill="none"><path id="polygon-tool-path" d="M12 3L21 9.5L17.5 20H6.5L3 9.5L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
         <span class="kbd">P</span>
-        <div style="position:absolute; bottom:2px; right:2px; width:12px; height:12px; display:flex; align-items:center; justify-content:center;">
-          <svg viewBox="0 0 10 10" width="8" height="8" fill="none" style="pointer-events:none;color:var(--text-2);"><path d="M2 3L5 6L8 3" stroke="currentColor" stroke-width="1.5"/></svg>
-          <select id="polygon-tool-select" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" title="Vertices">
-            <option value="3">3 (Triangle)</option>
-            <option value="4">4 (Diamond)</option>
-            <option value="5" selected>5 (Pentagon)</option>
-            <option value="6">6 (Hexagon)</option>
-            <option value="7">7 (Heptagon)</option>
-            <option value="8">8 (Octagon)</option>
-            <option value="10">10 (Decagon)</option>
-            <option value="12">12 (Dodecagon)</option>
-          </select>
+        <div id="polygon-tool-arrow" style="position:absolute; bottom:0; left:0; width:12px; height:12px; display:flex; align-items:center; justify-content:center; border-radius:3px; cursor:pointer;" title="Vertices">
+          <svg viewBox="0 0 10 10" width="8" height="8" fill="currentColor" style="pointer-events:none;color:var(--text-2);"><path d="M2 3L8 3L5 7Z"/></svg>
         </div>
       </div>
       <div class="tool" data-tool="pen" title="Pen — click points, Enter/dblclick to finish (E)">
@@ -1411,6 +1401,15 @@ select.input{ font-family:var(--sans); }
 </div>
 
 <div id="toast"><span class="dot"></span><span id="toast-text">Saved</span></div>
+
+<style>
+.pv-item { padding:7px 12px; cursor:pointer; border-radius:4px; font-size:13px; transition:background .1s, color .1s; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.pv-item:hover { background:var(--accent); color:#fff; }
+.pv-item.active { background:var(--bg-3); color:var(--text-0); }
+.pv-item svg { width:16px; height:16px; opacity:0.8; }
+</style>
+<div id="polygon-vertices-menu" style="display:none; position:fixed; background:var(--bg-2); border:1px solid var(--line); border-radius:6px; padding:4px; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,0.25); min-width:150px; color:var(--text-1);">
+</div>
 
 <script>
 // ===================== Vecta SVG Editor =====================
@@ -2129,17 +2128,34 @@ function renderSelection(){
   } else {
     // multi-select bounding box with resize handles AND a rotation handle.
     let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    objs.forEach(o=>{
-      minX=Math.min(minX,o.x); minY=Math.min(minY,o.y);
-      maxX=Math.max(maxX,o.x+o.w); maxY=Math.max(maxY,o.y+o.h);
-    });
-    const g = document.createElementNS(SVG_NS,'rect');
-    g.setAttribute('x',minX); g.setAttribute('y',minY);
-    g.setAttribute('width',maxX-minX); g.setAttribute('height',maxY-minY);
-    g.setAttribute('fill','none'); g.setAttribute('stroke','#4fb2e8'); g.setAttribute('stroke-width', 1.5/state.zoom);
-    g.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
+    let rot = 0;
+    if(drag && drag.type === 'rotate-multi') {
+      minX = drag.box.x; minY = drag.box.y;
+      maxX = minX + drag.box.w; maxY = minY + drag.box.h;
+      rot = drag.totalDelta || 0;
+    } else {
+      objs.forEach(o=>{
+        minX=Math.min(minX,o.x); minY=Math.min(minY,o.y);
+        maxX=Math.max(maxX,o.x+o.w); maxY=Math.max(maxY,o.y+o.h);
+      });
+    }
+    
+    const g = document.createElementNS(SVG_NS,'g');
+    if(rot){
+      const cx = minX + (maxX-minX)/2;
+      const cy = minY + (maxY-minY)/2;
+      g.setAttribute('transform', `rotate(${rot} ${cx} ${cy})`);
+    }
+
+    const rect = document.createElementNS(SVG_NS,'rect');
+    rect.setAttribute('x',minX); rect.setAttribute('y',minY);
+    rect.setAttribute('width',maxX-minX); rect.setAttribute('height',maxY-minY);
+    rect.setAttribute('fill','none'); rect.setAttribute('stroke','#4fb2e8'); rect.setAttribute('stroke-width', 1.5/state.zoom);
+    rect.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
+    g.appendChild(rect);
     overlay.appendChild(g);
-    addHandles(minX,minY,maxX-minX,maxY-minY,0,'multi-sel');
+    
+    addHandles(minX,minY,maxX-minX,maxY-minY,rot,'multi-sel');
   }
 }
 
@@ -2796,11 +2812,26 @@ bindNumberProp('#stroke-width','strokeWidth');
 bindNumberProp('#text-size','fontSize');
 
 // Polygon sides configuration
+function getToolbarPolygonPath(sides) {
+  const cx = 12, cy = 12, r = 8.5;
+  let d = '';
+  for(let i=0; i<sides; i++){
+    const a = -Math.PI/2 + i*2*Math.PI/sides;
+    const x = cx + Math.cos(a)*r;
+    const y = cy + Math.sin(a)*r;
+    d += (i===0 ? 'M' : 'L') + x.toFixed(2) + ' ' + y.toFixed(2);
+  }
+  return d + 'Z';
+}
+
 function updatePolygonSides(val) {
   const sides = parseInt(val) || 5;
   state.polygonSides = sides;
   if ($('#prop-sides')) $('#prop-sides').value = sides;
-  if ($('#polygon-tool-select')) $('#polygon-tool-select').value = sides;
+  
+  const iconPath = $('#polygon-tool-path');
+  if(iconPath) iconPath.setAttribute('d', getToolbarPolygonPath(sides));
+
   applyPropToSelection(o=>{
     if(o.type==='polygon'){
       o.sides = sides;
@@ -2809,9 +2840,50 @@ function updatePolygonSides(val) {
   });
 }
 $('#prop-sides').addEventListener('change', (e) => updatePolygonSides(e.target.value));
-$('#polygon-tool-select').addEventListener('change', (e) => {
+
+$('#polygon-tool-arrow').addEventListener('click', (e) => {
+  e.stopPropagation();
   setTool('polygon');
-  updatePolygonSides(e.target.value);
+  const menu = $('#polygon-vertices-menu');
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.display = 'block';
+  menu.style.left = '58px';
+  menu.style.top = (rect.top - 20) + 'px';
+  
+  const curSides = state.polygonSides || 5;
+  $$('.pv-item').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.val) === curSides);
+  });
+});
+
+function initPolygonMenu() {
+  const menu = $('#polygon-vertices-menu');
+  if(!menu) return;
+  const options = [
+    [3,'Triangle'], [4,'Diamond'], [5,'Pentagon'], [6,'Hexagon'],
+    [7,'Heptagon'], [8,'Octagon'], [10,'Decagon'], [12,'Dodecagon']
+  ];
+  menu.innerHTML = options.map(([val, label]) => `
+    <div class="pv-item" data-val="${val}">
+      <span>${val} (${label})</span>
+      <svg viewBox="0 0 24 24" fill="none"><path d="${getToolbarPolygonPath(val)}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    </div>
+  `).join('');
+  
+  $$('.pv-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      updatePolygonSides(e.currentTarget.dataset.val);
+      $('#polygon-vertices-menu').style.display = 'none';
+    });
+  });
+}
+initPolygonMenu();
+
+window.addEventListener('mousedown', (e) => {
+  const menu = $('#polygon-vertices-menu');
+  if (menu && menu.style.display === 'block' && !menu.contains(e.target) && !e.target.closest('#polygon-tool-arrow')) {
+    menu.style.display = 'none';
+  }
 });
 
 $('#prop-radius-per-corner-btn').addEventListener('click', ()=>{
@@ -3155,13 +3227,32 @@ function onCanvasMouseDown(e){
         const parentGroup = findParentGroup(hitId);
         if(parentGroup) hitId = parentGroup.id;
       }
-      if(e.shiftKey) {
-        selectObject(hitId, true);
-      } else {
-        if(!state.selectedIds.includes(hitId)) selectObject(hitId, false);
+      const wasSelected = state.selectedIds.includes(hitId);
+      if (!wasSelected) {
+        if(e.shiftKey) state.selectedIds.push(hitId);
+        else state.selectedIds = [hitId];
+        renderSelection(); renderLayersList(); updatePropsPanel();
       }
+      
       startMoveDrag(pt, e);
+      drag.hitId = hitId;
+      drag.shiftKey = e.shiftKey;
+      drag.wasSelected = wasSelected;
     } else {
+      // If the click lands in empty space but inside the combined bounding box of
+      // the current multi-selection, treat it as a move drag on that selection.
+      const selObjs = selectedObjs();
+      if(selObjs.length > 0 && !e.shiftKey){
+        let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+        selObjs.forEach(o=>{ minX=Math.min(minX,o.x); minY=Math.min(minY,o.y); maxX=Math.max(maxX,o.x+o.w); maxY=Math.max(maxY,o.y+o.h); });
+        if(pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY){
+          startMoveDrag(pt, e);
+          drag.hitId = null;
+          drag.shiftKey = false;
+          drag.wasSelected = true;
+          return;
+        }
+      }
       if(!e.shiftKey) selectObject(null);
       startMarqueeDrag(pt);
     }
@@ -3294,7 +3385,7 @@ function startDrawDrag(pt){
   const strokeColor = isLightColor(state.canvas.bg) ? '#1c1e21' : '#f4f5f7';
   if(state.tool==='line'){ o.points=[[0,0],[0,0]]; o.fill='none'; o.stroke=strokeColor; o.strokeWidth=2; }
   if(state.tool==='polygon'){
-    o.sides = state.polygonSides || parseInt($('#polygon-tool-select').value) || 5;
+    o.sides = state.polygonSides || 5;
     o.points = regularPolygonPoints(o.sides, 0, 0);
     o.w=0; o.h=0;
   }
@@ -3514,10 +3605,9 @@ function onCanvasMouseMove(e){
         g.appendChild(shape);
         shape = g;
       }
-      shape.setAttribute('fill', 'none');
+      shape.setAttribute('fill', 'rgba(79,178,232,0.25)');
       shape.setAttribute('stroke', '#4fb2e8');
-      shape.setAttribute('stroke-width', 2 / state.zoom);
-      shape.setAttribute('opacity', '0.6');
+      shape.setAttribute('stroke-width', 1.5 / state.zoom);
       shape.style.pointerEvents = 'none';
       glowG.appendChild(shape);
     });
@@ -3577,6 +3667,7 @@ function onCanvasMouseMove(e){
     if(drag.lastAng === undefined){ drag.lastAng = ang; drag.startAng = ang; return; }
     drag.lastAng = ang;
     const totalDelta = ang - drag.startAng;
+    drag.totalDelta = totalDelta;
     const rad = totalDelta * Math.PI / 180;
     drag.origins.forEach(orig => {
       const o = getObj(orig.id);
@@ -3648,7 +3739,7 @@ function onCanvasMouseUp(e){
       // treat as click - give default size
       o.w = o.type==='polygon'?100:80; o.h = o.type==='polygon'?100:80;
       if(o.type==='polygon'){
-        o.sides = state.polygonSides || parseInt($('#polygon-tool-select').value) || 5;
+        o.sides = state.polygonSides || 5;
         o.points = regularPolygonPoints(o.sides, 100, 100);
       }
       renderObject(o);
@@ -3665,6 +3756,23 @@ function onCanvasMouseUp(e){
     pushHistory();
   }
   if(drag.type==='move' || drag.type==='resize' || drag.type==='rotate' || drag.type==='rotate-multi'){
+    if(drag.type==='move'){
+      const pt = screenToSvg(e.clientX, e.clientY);
+      const isClick = Math.abs(pt.x - drag.startX) < 2 && Math.abs(pt.y - drag.startY) < 2;
+      if (isClick && drag.hitId) {
+        if (drag.shiftKey) {
+          if (drag.wasSelected) {
+            state.selectedIds = state.selectedIds.filter(x => x !== drag.hitId);
+            renderSelection(); renderLayersList(); updatePropsPanel();
+          }
+        } else {
+          if (drag.wasSelected && state.selectedIds.length > 1) {
+            state.selectedIds = [drag.hitId];
+            renderSelection(); renderLayersList(); updatePropsPanel();
+          }
+        }
+      }
+    }
     if(drag.type==='rotate' || drag.type==='rotate-multi') clearRotationReadout();
     // if we edited a child directly (e.g. Alt+click into a group), keep the parent group's box in sync
     const idsToCheck = drag.obj ? [drag.obj.id] : (drag.origins||[]).map(o=>o.id);
@@ -3808,6 +3916,7 @@ function startHandleDrag(target, pt, e){
     drag = {
       type: 'rotate-multi',
       cx: mcx, cy: mcy,
+      box: {x: minX, y: minY, w: maxX-minX, h: maxY-minY},
       origins: selObjs.map(o => ({id:o.id, x:o.x, y:o.y, w:o.w, h:o.h, rot:o.rot||0,
         // offset of each object's centre from the group centre (used during rotation)
         ocx: o.x+o.w/2 - mcx,
