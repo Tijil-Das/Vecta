@@ -699,6 +699,7 @@ select.input{ font-family:var(--sans); }
           <div class="ctm-field">
             <label>Theme name</label>
             <input type="text" id="ctm-name" placeholder="My theme" maxlength="28">
+            <div id="ctm-name-error" style="color:var(--danger); font-size:11px; margin-top:4px; display:none; align-items:center; gap:4px; font-weight:500;">⚠️ Theme name is required!</div>
           </div>
           <div class="ctm-field">
             <label>Accent colour</label>
@@ -710,7 +711,7 @@ select.input{ font-family:var(--sans); }
             </div>
           </div>
           <div class="ctm-field">
-            <label>Preview mode <span style="font-size:10px;color:var(--text-2);font-weight:400">(Dark/Light is always set from the Theme panel)</span></label>
+            <label>Preview mode</label>
             <div class="ctm-base-toggle">
               <button class="ctm-base-btn active" data-base="dark">Dark</button>
               <button class="ctm-base-btn" data-base="light">Light</button>
@@ -4618,6 +4619,9 @@ let ctmEditingId=null; // null=new, string=editing existing
 
 function openCustomThemeModal(editId){
   ctmEditingId=editId||null;
+  const err = $('#ctm-name-error');
+  if(err) err.style.display = 'none';
+  $('#ctm-name').style.borderColor = '';
   $('#custom-theme-overlay').classList.add('open');
   $('#theme-menu').classList.remove('open');
   if(editId){
@@ -4671,6 +4675,12 @@ $('#ctm-accent-input').addEventListener('input',e=>{
   $('#ctm-hex').textContent=e.target.value;
   updateCtmPreview();
 });
+// Clear error state on typing
+$('#ctm-name').addEventListener('input', () => {
+  const err = $('#ctm-name-error');
+  if(err) err.style.display = 'none';
+  $('#ctm-name').style.borderColor = '';
+});
 // Clicking anywhere on the swatch reliably opens the native color picker
 ctmColorDisplay.addEventListener('click', ()=>{ $('#ctm-accent-input').click(); });
 if($('#ctm-cancel')) $('#ctm-cancel').addEventListener('click',()=>{ $('#custom-theme-overlay').classList.remove('open'); });
@@ -4679,14 +4689,12 @@ $('#custom-theme-overlay').addEventListener('click',e=>{ if(e.target===$('#custo
 if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
   const name=$('#ctm-name').value.trim();
   if(!name){ 
-    alert('Please enter a theme name before saving!');
+    const err = $('#ctm-name-error');
+    if(err) err.style.display = 'flex';
     const inp = $('#ctm-name');
     inp.value = '';
     inp.focus(); 
     inp.style.borderColor='var(--danger)'; 
-    const oldP = inp.placeholder;
-    inp.placeholder = '⚠️ Please enter a theme name!';
-    setTimeout(()=>{ inp.style.borderColor=''; inp.placeholder = oldP; }, 2000); 
     return; 
   }
   const accent=$('#ctm-accent-input').value;
