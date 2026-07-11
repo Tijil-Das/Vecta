@@ -162,6 +162,140 @@ input{font-family:inherit; color:inherit;}
 .theme-check{ margin-left:auto; opacity:0; color:var(--accent); flex:0 0 14px; }
 .theme-option.active .theme-check{ opacity:1; }
 .theme-option.active{ background:var(--accent-dim); }
+
+/* ===== CUSTOM THEME BUTTON AT BOTTOM ===== */
+.theme-divider{
+  height:1px; background:var(--line-soft); margin:5px 4px;
+}
+.theme-add-btn{
+  display:flex; align-items:center; gap:9px; width:100%;
+  background:none; border:none; padding:8px 9px; border-radius:6px;
+  cursor:pointer; color:var(--text-2); font-size:12px; text-align:left;
+  font-family:inherit; font-style:italic;
+  transition:background .12s, color .12s;
+}
+.theme-add-btn:hover{ background:var(--bg-3); color:var(--text-0); }
+.theme-add-btn svg{ flex:0 0 15px; opacity:0.7; }
+
+/* Scrollable when many themes */
+#theme-menu.scrollable{ max-height:380px; overflow-y:auto; }
+
+/* Custom theme item: shows edit/delete on hover */
+.theme-option-custom{ position:relative; }
+.theme-option-custom .custom-actions{
+  display:none; align-items:center; gap:3px; margin-left:auto;
+}
+.theme-option-custom:hover .custom-actions{ display:flex; }
+.custom-action-btn{
+  background:none; border:none; padding:2px 5px; border-radius:4px;
+  cursor:pointer; color:var(--text-2); font-size:10px;
+  transition:background .1s, color .1s;
+}
+.custom-action-btn:hover{ background:var(--bg-3); color:var(--text-0); }
+
+/* ===== CUSTOM THEME BUILDER MODAL ===== */
+#custom-theme-overlay{
+  display:none; position:fixed; inset:0; z-index:2000;
+  background:rgba(0,0,0,0.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#custom-theme-overlay.open{ display:flex; }
+#custom-theme-modal{
+  background:var(--bg-1); border:1px solid var(--line); border-radius:14px;
+  padding:0; width:680px; max-width:96vw; max-height:88vh;
+  box-shadow:0 30px 80px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.ctm-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 22px 14px; border-bottom:1px solid var(--line);
+}
+.ctm-header h2{ font-size:15px; font-weight:700; color:var(--text-0); margin:0; }
+.ctm-close{
+  background:none; border:none; cursor:pointer; color:var(--text-2);
+  padding:4px; border-radius:6px; display:flex;
+  transition:background .12s;
+}
+.ctm-close:hover{ background:var(--bg-3); color:var(--text-0); }
+.ctm-body{ display:flex; flex:1; overflow:hidden; min-height:0; }
+
+/* Left: controls */
+.ctm-controls{
+  width:210px; flex:0 0 210px; padding:20px 18px;
+  border-right:1px solid var(--line);
+  display:flex; flex-direction:column; gap:18px; overflow-y:auto;
+}
+.ctm-field label{ display:block; font-size:11px; color:var(--text-2); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+.ctm-field input[type="text"]{
+  width:100%; background:var(--bg-2); border:1px solid var(--line);
+  border-radius:6px; padding:8px 10px; font-size:13px;
+  color:var(--text-0); font-family:inherit; outline:none;
+  transition:border-color .15s;
+}
+.ctm-field input[type="text"]:focus{ border-color:var(--accent); }
+
+/* Custom color picker widget */
+.ctm-color-pick{
+  display:flex; align-items:center; gap:10px;
+}
+.ctm-swatch-pick{
+  width:40px; height:40px; border-radius:8px; border:2px solid var(--line);
+  cursor:pointer; position:relative; overflow:hidden; flex:0 0 40px;
+  transition:border-color .15s;
+}
+.ctm-swatch-pick:hover{ border-color:var(--accent); }
+.ctm-swatch-pick input[type="color"]{
+  position:absolute; inset:-4px; opacity:0; cursor:pointer; width:calc(100%+8px); height:calc(100%+8px);
+}
+.ctm-hex-display{ font-size:13px; font-family:var(--mono); color:var(--text-0); }
+
+.ctm-base-toggle{ display:flex; gap:6px; }
+.ctm-base-btn{
+  flex:1; padding:7px 0; background:var(--bg-2); border:1px solid var(--line);
+  border-radius:6px; cursor:pointer; color:var(--text-1); font-size:11.5px;
+  font-family:inherit; transition:background .12s, border-color .12s;
+}
+.ctm-base-btn.active{ background:var(--accent); border-color:var(--accent); color:var(--accent-text); font-weight:700; }
+
+/* Right: live preview */
+.ctm-preview-wrap{
+  flex:1; min-width:0; padding:16px; display:flex; flex-direction:column;
+  background:var(--bg-0);
+  overflow:hidden;
+}
+.ctm-preview-label{ font-size:10.5px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
+#ctm-preview{
+  flex:1; border-radius:8px; overflow:hidden;
+  border:1px solid var(--line-soft);
+  display:flex; flex-direction:column;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+}
+/* Mini UI inside preview — colors are set via inline vars on the element */
+.mp-topbar{
+  height:32px; flex:0 0 32px; display:flex; align-items:center; padding:0 10px; gap:8px;
+  border-bottom:1px solid;
+}
+.mp-brand{ width:20px; height:8px; border-radius:3px; opacity:0.8; }
+.mp-sep{ width:1px; height:16px; opacity:0.3; margin:0 2px; }
+.mp-btn{ height:16px; border-radius:3px; opacity:0.6; }
+.mp-btn.accent{ opacity:1; }
+.mp-body{ display:flex; flex:1; min-height:0; }
+.mp-rail{ width:32px; flex:0 0 32px; padding:6px 4px; display:flex; flex-direction:column; gap:5px; border-right:1px solid; }
+.mp-tool{ width:24px; height:20px; border-radius:4px; opacity:0.35; }
+.mp-tool.active{ opacity:1; }
+.mp-canvas-wrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:10px; }
+.mp-canvas{
+  width:80%; height:80%; border-radius:4px;
+  position:relative; box-shadow:0 2px 12px rgba(0,0,0,0.25);
+}
+.mp-canvas svg{ width:100%; height:100%; }
+
+.ctm-footer{
+  display:flex; align-items:center; justify-content:flex-end; gap:10px;
+  padding:14px 22px; border-top:1px solid var(--line);
+}
+.ctm-footer button{ min-width:90px; }
+
 .btn.icon-only{ padding:7px; }
 .btn:disabled{ opacity:0.35; cursor:not-allowed; }
 .btn:disabled:hover{ background:var(--bg-2); border-color:var(--line); }
@@ -577,6 +711,13 @@ select.input{ font-family:var(--sans); }
           </button>
           <button class="theme-option" data-theme="ocean"><span class="theme-swatch" style="background:#329eea"></span>Ocean
             <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <!-- custom themes injected here by JS -->
+          <div id="custom-theme-list"></div>
+          <div class="theme-divider"></div>
+          <button class="theme-add-btn" id="btn-custom-theme">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Custom theme...
           </button>
         </div>
       </div>
@@ -1919,21 +2060,6 @@ function buildLayerRow(o, depth){
     <div class="layer-vis" title="Toggle visibility">${o.visible ? eyeOpenSvg() : eyeClosedSvg()}</div>
     <div class="layer-lock" title="Toggle lock">${o.locked ? lockClosedSvg() : lockOpenSvg()}</div>
   `;
-  item.addEventListener('click', (e)=>{
-    if(e.target.closest('.layer-vis') || e.target.closest('.layer-lock') || e.target.tagName==='INPUT') return;
-    selectObject(o.id, e.shiftKey);
-  });
-  item.querySelector('.layer-name').addEventListener('change', (e)=>{
-    o.name = e.target.value || o.name;
-    pushHistory();
-  });
-  item.querySelector('.layer-name').addEventListener('click', e=>e.stopPropagation());
-  item.querySelector('.layer-vis').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    o.visible = !o.visible;
-    if(o.type==='group') groupChildren(o).forEach(c=>{ c.visible=o.visible; renderObject(c); });
-    renderObject(o);
-    renderLayersList();
     pushHistory();
   });
   item.querySelector('.layer-lock').addEventListener('click', (e)=>{
@@ -4038,29 +4164,183 @@ function toast(msg, isError){
   toastTimer = setTimeout(()=> t.classList.remove('show'), 2200);
 }
 
-// ================= INIT =================
+// ================= THEME =================
 
-function seedDemoShape(){
-  // no demo shapes; start blank canvas per "as easy as creating an image" - blank slate is friendlier
+// ---- color math helpers ----
+function hexToRgb(hex){
+  const c = hex.replace('#','');
+  const v = parseInt(c.length===3 ? c.split('').map(x=>x+x).join('') : c, 16);
+  return [(v>>16)&255,(v>>8)&255,v&255];
+}
+function rgbToHex(r,g,b){
+  return '#'+[r,g,b].map(x=>Math.round(Math.max(0,Math.min(255,x))).toString(16).padStart(2,'0')).join('');
+}
+function rgbToHsl(r,g,b){
+  r/=255;g/=255;b/=255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+  let h,s,l=(mx+mn)/2;
+  if(mx===mn){h=s=0;}
+  else{
+    const d=mx-mn;
+    s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+    if(mx===r) h=((g-b)/d+(g<b?6:0))/6;
+    else if(mx===g) h=((b-r)/d+2)/6;
+    else h=((r-g)/d+4)/6;
+  }
+  return [h*360,s*100,l*100];
+}
+function hslToRgb(h,s,l){
+  h/=360;s/=100;l/=100;
+  let r,g,b;
+  if(!s){r=g=b=l;}else{
+    function q(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
+    const qv=l<0.5?l*(1+s):l+s-l*s,pv=2*l-qv;
+    r=q(pv,qv,h+1/3);g=q(pv,qv,h);b=q(pv,qv,h-1/3);
+  }
+  return [r*255,g*255,b*255];
+}
+function hslToHex(h,s,l){ const [r,g,b]=hslToRgb(h,s,l); return rgbToHex(r,g,b); }
+function adjustL(hex,dl){
+  const [r,g,b]=hexToRgb(hex);
+  const [h,s,l]=rgbToHsl(r,g,b);
+  return hslToHex(h,s,Math.max(0,Math.min(100,l+dl)));
+}
+function adjustSL(hex,ds,dl){
+  const [r,g,b]=hexToRgb(hex);
+  const [h,s,l]=rgbToHsl(r,g,b);
+  return hslToHex(h,Math.max(0,Math.min(100,s+ds)),Math.max(0,Math.min(100,l+dl)));
 }
 
-// ================= THEME =================
+// Generate a full CSS vars palette from an accent color + base (dark/light)
+function generatePaletteFromAccent(accentHex, base='dark'){
+  const [ar,ag,ab]=hexToRgb(accentHex);
+  const [ah,as,al]=rgbToHsl(ar,ag,ab);
+  if(base==='dark'){
+    const bg0=hslToHex(ah,Math.min(as*0.25,20),8);
+    const bg1=hslToHex(ah,Math.min(as*0.25,18),12);
+    const bg2=hslToHex(ah,Math.min(as*0.22,16),17);
+    const bg3=hslToHex(ah,Math.min(as*0.2,14),22);
+    const line=hslToHex(ah,Math.min(as*0.2,18),28);
+    const lineSoft=hslToHex(ah,Math.min(as*0.15,14),21);
+    const text0=hslToHex(ah,Math.min(as*0.12,10),90);
+    const text1=hslToHex(ah,Math.min(as*0.18,14),62);
+    const text2=hslToHex(ah,Math.min(as*0.2,18),42);
+    const accentHover=adjustL(accentHex,12);
+    const accentDim=hslToHex(ah,Math.min(as*0.5,45),Math.min(al*0.35,22));
+    const accentText=isLightColor(accentHex)?'#1c1e21':'#f4f5f7';
+    const canvasVoid=hslToHex(ah,Math.min(as*0.3,18),5);
+    return {bg0,bg1,bg2,bg3,line,lineSoft,text0,text1,text2,accent:accentHex,accentHover,accentDim,accentText,danger:'#e8664f',ok:accentHex,canvasVoid};
+  } else {
+    // light base
+    const bg0=hslToHex(ah,Math.min(as*0.15,12),94);
+    const bg1=hslToHex(ah,0,100);
+    const bg2=hslToHex(ah,Math.min(as*0.12,10),94);
+    const bg3=hslToHex(ah,Math.min(as*0.12,10),88);
+    const line=hslToHex(ah,Math.min(as*0.18,14),80);
+    const lineSoft=hslToHex(ah,Math.min(as*0.1,8),87);
+    const text0=hslToHex(ah,Math.min(as*0.2,14),12);
+    const text1=hslToHex(ah,Math.min(as*0.2,14),38);
+    const text2=hslToHex(ah,Math.min(as*0.18,12),56);
+    const accentHover=adjustL(accentHex,-10);
+    const accentDim=adjustSL(accentHex,-10,35);
+    const accentText=isLightColor(accentHex)?'#1c1e21':'#f4f5f7';
+    const canvasVoid=hslToHex(ah,Math.min(as*0.1,8),84);
+    return {bg0,bg1,bg2,bg3,line,lineSoft,text0,text1,text2,accent:accentHex,accentHover,accentDim,accentText,danger:'#d1483a',ok:'#2f9e63',canvasVoid};
+  }
+}
+
+// Inject / update a <style> tag for a custom theme
+function injectCustomThemeStyle(id, palette){
+  let el=document.getElementById('custom-theme-style-'+id);
+  if(!el){ el=document.createElement('style'); el.id='custom-theme-style-'+id; document.head.appendChild(el); }
+  el.textContent=`html[data-theme="custom-${id}"]{
+  --bg-0:${palette.bg0};--bg-1:${palette.bg1};--bg-2:${palette.bg2};--bg-3:${palette.bg3};
+  --line:${palette.line};--line-soft:${palette.lineSoft};
+  --text-0:${palette.text0};--text-1:${palette.text1};--text-2:${palette.text2};
+  --accent:${palette.accent};--accent-hover:${palette.accentHover};--accent-dim:${palette.accentDim};--accent-text:${palette.accentText};
+  --danger:${palette.danger};--ok:${palette.ok};
+  --canvas-void:${palette.canvasVoid};
+}`;
+}
+
+// Custom themes stored in localStorage as array of {id,name,accent,base,palette}
+let customThemes=[];
+function loadCustomThemes(){
+  try{ customThemes=JSON.parse(localStorage.getItem('vecta-custom-themes')||'[]'); }catch(e){ customThemes=[]; }
+  customThemes.forEach(t=>injectCustomThemeStyle(t.id,t.palette));
+}
+function saveCustomThemes(){
+  try{ localStorage.setItem('vecta-custom-themes',JSON.stringify(customThemes)); }catch(e){}
+}
+
+function renderCustomThemeList(){
+  const list=$('#custom-theme-list');
+  if(!list) return;
+  list.innerHTML='';
+  customThemes.forEach(t=>{
+    const btn=document.createElement('div');
+    btn.className='theme-option theme-option-custom';
+    btn.dataset.theme='custom-'+t.id;
+    btn.innerHTML=`
+      <span class="theme-swatch" style="background:${t.accent}"></span>
+      <span style="flex:1;text-align:left">${t.name}</span>
+      <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="custom-actions">
+        <button class="custom-action-btn" data-edit="${t.id}" title="Edit">Edit</button>
+        <button class="custom-action-btn" data-delete="${t.id}" title="Delete" style="color:#e8664f">Del</button>
+      </div>`;
+    btn.addEventListener('click',ev=>{
+      if(ev.target.closest('[data-edit]')){ ev.stopPropagation(); openCustomThemeModal(t.id); return; }
+      if(ev.target.closest('[data-delete]')){ ev.stopPropagation(); deleteCustomTheme(t.id); return; }
+      applyTheme('custom-'+t.id);
+      $('#theme-menu').classList.remove('open');
+    });
+    list.appendChild(btn);
+  });
+  // scrollable when total > 10
+  const total=6+customThemes.length;
+  $('#theme-menu').classList.toggle('scrollable',total>10);
+}
+
+function deleteCustomTheme(id){
+  const idx=customThemes.findIndex(t=>t.id===id);
+  if(idx===-1) return;
+  const t=customThemes[idx];
+  if(!confirm(`Delete theme "${t.name}"?`)) return;
+  customThemes.splice(idx,1);
+  saveCustomThemes();
+  const el=document.getElementById('custom-theme-style-'+id);
+  if(el) el.remove();
+  // if active, fall back to dark
+  const cur=document.documentElement.getAttribute('data-theme');
+  if(cur==='custom-'+id){ applyTheme('dark'); }
+  renderCustomThemeList();
+  updateThemeOptionListeners();
+}
 
 function applyTheme(name){
   if(name==='dark') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', name);
   try{ localStorage.setItem('vecta-theme', name); }catch(e){}
-  $$('.theme-option').forEach(btn=> btn.classList.toggle('active', btn.dataset.theme===name));
-  // grid/hover colors get re-sampled from CSS vars, so redraw anything cached
+  $$('.theme-option').forEach(btn=>
+    btn.classList.toggle('active', btn.dataset.theme===name));
+  $$('#custom-theme-list .theme-option-custom').forEach(btn=>
+    btn.classList.toggle('active', btn.dataset.theme===name));
   drawRulers();
   renderGuides();
+}
+
+function updateThemeOptionListeners(){
+  $$('.theme-option:not(.theme-option-custom)').forEach(btn=>{
+    btn.onclick=()=>{ applyTheme(btn.dataset.theme); $('#theme-menu').classList.remove('open'); };
+  });
 }
 
 $('#btn-theme').addEventListener('click', (e)=>{
   e.stopPropagation();
   $('#theme-menu').classList.toggle('open');
 });
-$('#theme-menu').addEventListener('click', e=> e.stopPropagation());
+$('#theme-menu').addEventListener('click', e=>e.stopPropagation());
 $$('.theme-option').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     applyTheme(btn.dataset.theme);
@@ -4069,11 +4349,92 @@ $$('.theme-option').forEach(btn=>{
 });
 window.addEventListener('click', ()=>{ $('#theme-menu').classList.remove('open'); });
 
+// ---- Custom theme builder modal ----
+let ctmEditingId=null; // null=new, string=editing existing
+
+function openCustomThemeModal(editId){
+  ctmEditingId=editId||null;
+  $('#custom-theme-overlay').classList.add('open');
+  $('#theme-menu').classList.remove('open');
+  if(editId){
+    const t=customThemes.find(x=>x.id===editId);
+    if(!t) return;
+    $('#ctm-name').value=t.name;
+    $('#ctm-accent-input').value=t.accent;
+    ctmColorDisplay.style.background=t.accent;
+    $('#ctm-hex').textContent=t.accent;
+    ctmBase=t.base||'dark';
+    updateCtmBaseButtons();
+  } else {
+    $('#ctm-name').value='';
+    const defaultAccent='#4a90e2';
+    $('#ctm-accent-input').value=defaultAccent;
+    ctmColorDisplay.style.background=defaultAccent;
+    $('#ctm-hex').textContent=defaultAccent;
+    ctmBase='dark';
+    updateCtmBaseButtons();
+  }
+  updateCtmPreview();
+}
+
+let ctmBase='dark';
+const ctmColorDisplay=$('#ctm-color-display');
+function updateCtmBaseButtons(){
+  $$('.ctm-base-btn').forEach(b=>b.classList.toggle('active',b.dataset.base===ctmBase));
+}
+function updateCtmPreview(){
+  const accent=$('#ctm-accent-input').value;
+  const pal=generatePaletteFromAccent(accent,ctmBase);
+  const p=$('#ctm-preview');
+  if(!p) return;
+  // Apply palette as CSS vars on the preview element
+  const vars=`--mp-bg0:${pal.bg0};--mp-bg1:${pal.bg1};--mp-bg2:${pal.bg2};--mp-bg3:${pal.bg3};`+
+    `--mp-line:${pal.line};--mp-text0:${pal.text0};--mp-text1:${pal.text1};`+
+    `--mp-accent:${pal.accent};--mp-accent-dim:${pal.accentDim};--mp-cvoid:${pal.canvasVoid};`;
+  p.style.cssText=vars;
+}
+
+$$('.ctm-base-btn').forEach(b=>{
+  b.addEventListener('click',()=>{ ctmBase=b.dataset.base; updateCtmBaseButtons(); updateCtmPreview(); });
+});
+$('#ctm-accent-input').addEventListener('input',e=>{
+  ctmColorDisplay.style.background=e.target.value;
+  $('#ctm-hex').textContent=e.target.value;
+  updateCtmPreview();
+});
+if($('#ctm-cancel')) $('#ctm-cancel').addEventListener('click',()=>{ $('#custom-theme-overlay').classList.remove('open'); });
+if($('#ctm-cancel-x')) $('#ctm-cancel-x').addEventListener('click',()=>{ $('#custom-theme-overlay').classList.remove('open'); });
+$('#custom-theme-overlay').addEventListener('click',e=>{ if(e.target===$('#custom-theme-overlay')) $('#custom-theme-overlay').classList.remove('open'); });
+if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
+  const name=$('#ctm-name').value.trim()||'Custom';
+  const accent=$('#ctm-accent-input').value;
+  const palette=generatePaletteFromAccent(accent,ctmBase);
+  if(ctmEditingId){
+    const t=customThemes.find(x=>x.id===ctmEditingId);
+    if(t){ t.name=name; t.accent=accent; t.base=ctmBase; t.palette=palette; injectCustomThemeStyle(t.id,t.palette); }
+  } else {
+    const id='c'+Date.now();
+    customThemes.push({id,name,accent,base:ctmBase,palette});
+    injectCustomThemeStyle(id,palette);
+  }
+  saveCustomThemes();
+  renderCustomThemeList();
+  const applyId=ctmEditingId||(customThemes[customThemes.length-1].id);
+  applyTheme('custom-'+applyId);
+  $('#custom-theme-overlay').classList.remove('open');
+});
+if($('#btn-custom-theme')) $('#btn-custom-theme').addEventListener('click',e=>{ e.stopPropagation(); openCustomThemeModal(null); });
+
 function initTheme(){
-  let saved = 'dark';
-  try{ saved = localStorage.getItem('vecta-theme') || 'dark'; }catch(e){}
+  loadCustomThemes();
+  renderCustomThemeList();
+  updateThemeOptionListeners();
+  let saved='dark';
+  try{ saved=localStorage.getItem('vecta-theme')||'dark'; }catch(e){}
   applyTheme(saved);
 }
+
+// ================= INIT =================
 
 function init(){
   initTheme();
@@ -4099,5 +4460,80 @@ window.__vecta = { state, undo, redo };
 })();
 
 </script>
+<!-- ===== CUSTOM THEME BUILDER MODAL ===== -->
+<div id="custom-theme-overlay">
+  <div id="custom-theme-modal">
+    <div class="ctm-header">
+      <h2>Custom Theme</h2>
+      <button class="ctm-close" id="ctm-cancel-x" title="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="ctm-body">
+      <div class="ctm-controls">
+        <div class="ctm-field">
+          <label>Theme name</label>
+          <input type="text" id="ctm-name" placeholder="My theme" maxlength="28">
+        </div>
+        <div class="ctm-field">
+          <label>Accent colour</label>
+          <div class="ctm-color-pick">
+            <div class="ctm-swatch-pick" id="ctm-color-display" style="background:#4a90e2">
+              <input type="color" id="ctm-accent-input" value="#4a90e2">
+            </div>
+            <span class="ctm-hex-display" id="ctm-hex">#4a90e2</span>
+          </div>
+        </div>
+        <div class="ctm-field">
+          <label>Base style</label>
+          <div class="ctm-base-toggle">
+            <button class="ctm-base-btn active" data-base="dark">Dark</button>
+            <button class="ctm-base-btn" data-base="light">Light</button>
+          </div>
+        </div>
+        <div class="ctm-field" style="font-size:11px;color:var(--text-2);line-height:1.5">
+          The accent colour drives the entire palette — backgrounds, borders, and text are auto-generated for legibility.
+        </div>
+      </div>
+      <div class="ctm-preview-wrap">
+        <div class="ctm-preview-label">Live preview</div>
+        <div id="ctm-preview">
+          <div class="mp-topbar" style="background:var(--mp-bg1,#1e222a);border-color:var(--mp-line,#2e3748);">
+            <div class="mp-brand" style="background:var(--mp-accent,#4a90e2);"></div>
+            <div class="mp-sep" style="background:var(--mp-text1,#9cb6d1);"></div>
+            <div class="mp-btn" style="background:var(--mp-text1,#9cb6d1);width:28px;"></div>
+            <div class="mp-btn" style="background:var(--mp-text1,#9cb6d1);width:22px;"></div>
+            <div class="mp-btn" style="background:var(--mp-text1,#9cb6d1);width:22px;"></div>
+            <div style="flex:1"></div>
+            <div class="mp-btn accent" style="background:var(--mp-accent,#4a90e2);width:50px;border-radius:4px;"></div>
+          </div>
+          <div class="mp-body" style="background:var(--mp-cvoid,#0b121a);">
+            <div class="mp-rail" style="background:var(--mp-bg1,#1e222a);border-color:var(--mp-line,#2e3748);">
+              <div class="mp-tool active" style="background:var(--mp-accent,#4a90e2);"></div>
+              <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
+              <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
+              <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
+              <div class="mp-tool" style="background:var(--mp-text1,#9cb6d1);"></div>
+            </div>
+            <div class="mp-canvas-wrap">
+              <div class="mp-canvas" style="background:var(--mp-bg1,#ffffff);">
+                <svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="15" y="15" width="75" height="50" rx="4" fill="none" stroke-width="2" style="stroke:var(--mp-accent,#4a90e2);"/>
+                  <ellipse cx="148" cy="55" rx="32" ry="24" style="fill:var(--mp-adim,#1d4669);stroke:var(--mp-accent,#4a90e2);" stroke-width="1.5" fill="none"/>
+                  <line x1="15" y1="95" x2="185" y2="115" stroke-width="2" style="stroke:var(--mp-text1,#9cb6d1);"/>
+                  <rect x="15" y="15" width="75" height="50" rx="4" fill="none" stroke-width="1" stroke-dasharray="3,2" style="stroke:var(--mp-accent,#4a90e2);opacity:0.5"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ctm-footer">
+      <button class="btn" id="ctm-cancel">Cancel</button>
+      <button class="btn primary" id="ctm-save">Apply &amp; Save</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
