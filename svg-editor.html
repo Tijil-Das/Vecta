@@ -35,7 +35,7 @@
 /* Each theme redefines the same variable set used throughout the UI, so no
    component needs theme-specific logic — just pick colors that keep the same
    contrast relationships (text-0 always most readable on bg-1, etc). */
-[data-theme="light"]{
+html[data-theme="light"]{
   --bg-0:#f4f5f7; --bg-1:#ffffff; --bg-2:#f0f1f3; --bg-3:#e6e8eb;
   --line:#d8dade; --line-soft:#e4e6e9;
   --text-0:#1c1e21; --text-1:#5b6068; --text-2:#8a8f97;
@@ -43,7 +43,7 @@
   --danger:#d1483a; --ok:#2f9e63;
   --canvas-void:#e2e4e8;
 }
-[data-theme="rose"]{
+html[data-theme="rose"]{
   --bg-0:#f7e9ee; --bg-1:#fdf3f6; --bg-2:#f9e6ec; --bg-3:#f3d8e1;
   --line:#e8c2d1; --line-soft:#f0d7e2;
   --text-0:#3d2530; --text-1:#7a5566; --text-2:#9c7c8a;
@@ -51,7 +51,7 @@
   --danger:#d1483a; --ok:#3f9e6f;
   --canvas-void:#efd6e0;
 }
-[data-theme="beige"]{
+html[data-theme="beige"]{
   --bg-0:#ece5d8; --bg-1:#f5f0e6; --bg-2:#ece4d6; --bg-3:#e2d7c3;
   --line:#d3c6ac; --line-soft:#e0d5bf;
   --text-0:#3a3226; --text-1:#6e6350; --text-2:#948a75;
@@ -59,13 +59,21 @@
   --danger:#c14e3a; --ok:#5e8f5a;
   --canvas-void:#ddd2ba;
 }
-[data-theme="forest"]{
+html[data-theme="forest"]{
   --bg-0:#182420; --bg-1:#1e2b26; --bg-2:#25342d; --bg-3:#2e4038;
   --line:#3c5248; --line-soft:#2c3d35;
   --text-0:#e8f2ec; --text-1:#a9c4b7; --text-2:#7a988a;
   --accent:#4fd68c; --accent-hover:#6fe0a3; --accent-dim:#254a3a; --accent-text:#0a1c14;
   --danger:#e8664f; --ok:#4fd68c;
   --canvas-void:#101a16;
+}
+html[data-theme="ocean"]{
+  --bg-0:#111b24; --bg-1:#15222e; --bg-2:#1c2d3d; --bg-3:#24394c;
+  --line:#2e475e; --line-soft:#22364a;
+  --text-0:#e1edf8; --text-1:#9cb6d1; --text-2:#6f8ca8;
+  --accent:#329eea; --accent-hover:#55b1f0; --accent-dim:#1d4669; --accent-text:#061826;
+  --danger:#ea5555; --ok:#329eea;
+  --canvas-void:#0b121a;
 }
 
 *{box-sizing:border-box;}
@@ -90,8 +98,10 @@ input{font-family:inherit; color:inherit;}
   border-bottom:1px solid var(--line);
   display:flex; align-items:center;
   padding:0 12px;
-  gap:14px;
+  gap:8px;
   z-index:50;
+  /* NOTE: overflow must NOT be hidden here — that would clip the theme dropdown */
+  overflow:visible;
 }
 .brand{
   display:flex; align-items:center; gap:8px;
@@ -128,12 +138,10 @@ input{font-family:inherit; color:inherit;}
 .btn.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-text); font-weight:700; }
 .btn.primary:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
 
-/* Theme menu: intentionally uses fixed colors, not CSS theme variables — this
-   menu's job is to be legible no matter which theme is currently active, so it
-   can never blend into its own background the way a themed panel would. */
+/* Theme menu now uses CSS theme variables so it matches the active theme */
 .theme-menu{
   display:none; position:absolute; top:38px; right:0;
-  background:#1e2024; border:1px solid #3a3d43; border-radius:8px;
+  background:var(--bg-2); border:1px solid var(--line); border-radius:8px;
   padding:6px; min-width:170px; box-shadow:0 10px 34px rgba(0,0,0,0.5);
   z-index:100;
 }
@@ -141,17 +149,19 @@ input{font-family:inherit; color:inherit;}
 .theme-option{
   display:flex; align-items:center; gap:9px; width:100%;
   background:none; border:none; padding:8px 9px; border-radius:6px;
-  cursor:pointer; color:#eceef1; font-size:12.5px; text-align:left;
+  cursor:pointer; color:var(--text-0); font-size:12.5px; text-align:left;
   font-family:inherit;
 }
-.theme-option:hover{ background:#2a2d33; }
+.theme-option:hover{ background:var(--bg-3); }
 .theme-swatch{
   width:15px; height:15px; border-radius:50%; flex:0 0 15px;
-  border:1px solid rgba(255,255,255,0.25);
+  /* Solid 2px contrasting border so swatches never camouflage on any background */
+  border:2px solid var(--line);
+  outline:1px solid rgba(0,0,0,0.2);
 }
-.theme-check{ margin-left:auto; opacity:0; color:#4fb2e8; flex:0 0 14px; }
+.theme-check{ margin-left:auto; opacity:0; color:var(--accent); flex:0 0 14px; }
 .theme-option.active .theme-check{ opacity:1; }
-.theme-option.active{ background:#262a30; }
+.theme-option.active{ background:var(--accent-dim); }
 .btn.icon-only{ padding:7px; }
 .btn:disabled{ opacity:0.35; cursor:not-allowed; }
 .btn:disabled:hover{ background:var(--bg-2); border-color:var(--line); }
@@ -281,43 +291,12 @@ input{font-family:inherit; color:inherit;}
   position:absolute; border:1.5px solid #8fd0f5; pointer-events:none;
 }
 
-/* zoom / coord readout (signature element) */
-#hud{
-  position:absolute; bottom:14px; left:14px;
-  display:flex; align-items:center; gap:0;
-  background:var(--bg-2);
-  opacity:0.96;
-  border:1px solid var(--line);
-  border-radius:8px;
-  overflow:hidden;
-  font-family:var(--mono);
-  font-size:11px;
-  backdrop-filter:blur(6px);
-  z-index:20;
-}
-#hud .seg{
-  padding:8px 12px;
-  border-right:1px solid var(--line);
-  color:var(--text-1);
-  display:flex; align-items:center; gap:6px;
-  min-width:64px;
-}
-#hud .seg:last-child{ border-right:none; }
-#hud .seg b{ color:var(--text-0); font-weight:600; }
-#hud .seg .lbl{ color:var(--text-2); font-size:9.5px; text-transform:uppercase; letter-spacing:0.5px; }
-#hud button{
-  background:none; border:none; color:var(--text-1); cursor:pointer; padding:2px 4px; font-size:13px;
-}
-#hud button:hover{ color:var(--accent); }
+/* Bottom HUD removed */
+#hud{ display:none; }
 
-/* ===== RIGHT PANEL ===== */
-#rightpanel{
-  width:280px; flex:0 0 280px;
-  background:var(--bg-1);
-  border-left:1px solid var(--line);
-  display:flex; flex-direction:column;
-  overflow-y:auto;
-}
+/* RIGHT PANEL hidden */
+#rightpanel{ display:none; }
+
 .panel-section{
   border-bottom:1px solid var(--line-soft);
   padding:14px;
@@ -328,7 +307,9 @@ input{font-family:inherit; color:inherit;}
   margin-bottom:10px;
   display:flex; align-items:center; justify-content:space-between;
 }
-.row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.row{
+  display:flex; align-items:center; gap:8px; margin-bottom:8px;
+}
 .row:last-child{ margin-bottom:0; }
 .field{ flex:1; min-width:0; }
 .field-label{ font-size:10.5px; color:var(--text-2); margin-bottom:4px; display:block; }
@@ -550,6 +531,20 @@ select.input{ font-family:var(--sans); }
       <svg viewBox="0 0 24 24" fill="none"><path d="M17 8H10C7 8 5 10 5 13C5 16 7 18 10 18H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 4L18 8L14 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="divider"></div>
+    <!-- Coord + zoom HUD inline in topbar -->
+    <div id="topbar-hud" style="display:flex;align-items:center;gap:0;font-family:var(--mono);font-size:11px;background:var(--bg-2);border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+      <div style="padding:5px 9px;border-right:1px solid var(--line);color:var(--text-1);display:flex;align-items:center;gap:5px;">
+        <span style="color:var(--text-2);font-size:9.5px;text-transform:uppercase;letter-spacing:0.5px;">X</span><b id="hud-x" style="color:var(--text-0);font-weight:600;">0</b>
+      </div>
+      <div style="padding:5px 9px;border-right:1px solid var(--line);color:var(--text-1);display:flex;align-items:center;gap:5px;">
+        <span style="color:var(--text-2);font-size:9.5px;text-transform:uppercase;letter-spacing:0.5px;">Y</span><b id="hud-y" style="color:var(--text-0);font-weight:600;">0</b>
+      </div>
+      <div style="padding:5px 6px;display:flex;align-items:center;gap:4px;">
+        <button id="hud-zoom-out" style="background:none;border:none;color:var(--text-1);cursor:pointer;padding:1px 3px;font-size:13px;">−</button>
+        <b id="hud-zoom" style="color:var(--text-0);font-weight:600;">100%</b>
+        <button id="hud-zoom-in" style="background:none;border:none;color:var(--text-1);cursor:pointer;padding:1px 3px;font-size:13px;">+</button>
+      </div>
+    </div>
     <button class="btn" id="btn-import" title="Import SVG/image">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 12 12)"/></svg>
       Import
@@ -565,29 +560,26 @@ select.input{ font-family:var(--sans); }
           Theme
         </button>
         <div id="theme-menu" class="theme-menu">
-          <button class="theme-option" data-theme="dark">
-            <span class="theme-swatch" style="background:#1b1d21"></span>Dark
+          <button class="theme-option" data-theme="dark"><span class="theme-swatch" style="background:#1b1d21"></span>Dark
             <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="theme-option" data-theme="light">
-            <span class="theme-swatch" style="background:#ffffff;border-color:#c7cbd1"></span>Light
+          <button class="theme-option" data-theme="light"><span class="theme-swatch" style="background:#ffffff"></span>Light
             <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="theme-option" data-theme="rose">
-            <span class="theme-swatch" style="background:#f472a8"></span>Rose pink
+          <button class="theme-option" data-theme="rose"><span class="theme-swatch" style="background:#f472a8"></span>Rose pink
             <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="theme-option" data-theme="beige">
-            <span class="theme-swatch" style="background:#b5772e"></span>Beige
+          <button class="theme-option" data-theme="beige"><span class="theme-swatch" style="background:#b5772e"></span>Beige
             <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="theme-option" data-theme="forest">
-            <span class="theme-swatch" style="background:#4fd68c"></span>Forest
+          <button class="theme-option" data-theme="forest"><span class="theme-swatch" style="background:#4fd68c"></span>Forest
+            <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="theme-option" data-theme="ocean"><span class="theme-swatch" style="background:#329eea"></span>Ocean
             <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
       </div>
-      <button class="btn" id="btn-clear">Clear canvas</button>
       <button class="btn primary" id="btn-export">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export SVG
@@ -679,7 +671,7 @@ select.input{ font-family:var(--sans); }
 
       <div class="panel-section" id="panel-props">
         <div class="panel-title" id="panel-props-title">Design</div>
-        <div id="props-empty" class="empty-state">Select an object to edit its properties, or pick a tool and draw on the canvas.</div>
+        <div id="props-empty" style="display:none"></div>
         <div id="props-content" style="display:none">
 
           <div class="row xy-grid">
@@ -1773,8 +1765,6 @@ function renderSelection(){
     drawSelBoxSVG(o);
   } else {
     // multi-select bounding box with resize handles AND a rotation handle.
-    // We use 'multi-sel' as the synthetic ownerId so addHandles renders the
-    // rotate circle the same way it does for a single object.
     let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     objs.forEach(o=>{
       minX=Math.min(minX,o.x); minY=Math.min(minY,o.y);
@@ -1786,7 +1776,6 @@ function renderSelection(){
     g.setAttribute('fill','none'); g.setAttribute('stroke','#4fb2e8'); g.setAttribute('stroke-width', 1.5/state.zoom);
     g.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
     overlay.appendChild(g);
-    // corner+edge handles for group scale, plus a rotation handle
     addHandles(minX,minY,maxX-minX,maxY-minY,0,'multi-sel');
   }
 }
@@ -1795,21 +1784,18 @@ function drawSelBoxSVG(o){
   const cx = o.x+o.w/2, cy=o.y+o.h/2;
   const color = o.locked ? '#71767f' : '#4fb2e8';
 
-  // For shapes with real geometry (paths, polygons, lines), outline the actual
-  // silhouette rather than a generic rectangle.
   const outline = selectionOutlineFor(o);
   if(outline){
     // Geometry-traced outlines already use absolute SVG coordinates matching the
     // rendered shape exactly — no extra rotation needed; they are correct as-is.
-    // (Applying a parent-group rotation on top would double-rotate them.)
     outline.setAttribute('fill','none');
     outline.setAttribute('stroke', color);
     outline.setAttribute('stroke-width', 1.5/state.zoom);
     if(o.locked) outline.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
     overlay.appendChild(outline);
   } else {
-    // Bbox-based shapes (rect, ellipse, text, image) — the plain unrotated bbox
-    // rect must be wrapped in a rotated group so it visually follows the object.
+    // Bbox-based shapes (rect, ellipse, text, image, group) — wrap in a rotated
+    // group so the outline visually follows the object's own rotation.
     const g = document.createElementNS(SVG_NS,'g');
     g.setAttribute('transform', o.rot ? `rotate(${o.rot} ${cx} ${cy})` : '');
     const rect = document.createElementNS(SVG_NS,'rect');
@@ -2379,19 +2365,32 @@ function bindNumberProp(id, key){
         else o[key] = v;
       });
     } else if(key==='w' || key==='h'){
+      // Resize from center: keep the visual center fixed so rotated objects
+      // don't appear to drift when you change dimensions in the panel.
       applyPropToSelection(o=>{
         const oldVal = o[key] || 1;
-        o[key] = Math.max(1, v);
+        const newVal = Math.max(1, v);
+        // Adjust position so the center stays constant
+        if(key==='w'){
+          const cx = o.x + o.w/2;
+          o.w = newVal;
+          o.x = cx - newVal/2;
+        } else {
+          const cy = o.y + o.h/2;
+          o.h = newVal;
+          o.y = cy - newVal/2;
+        }
+        // Scale points proportionally so polygons/paths scale with the bbox
         if(o.points && o.points.length && oldVal > 0){
-          const scale = o[key] / oldVal;
+          const scale = newVal / oldVal;
           o.points = o.points.map(p => key==='w' ? [p[0]*scale, p[1]] : [p[0], p[1]*scale]);
         }
       });
     } else {
-      applyPropToSelection(o=> o[key]=v );
+      applyPropToSelection(o => o[key]=v );
     }
   });
-  $(id).addEventListener('change', ()=> pushHistory());
+  $(id).addEventListener('change', () => pushHistory());
 }
 bindNumberProp('#prop-x','x');
 bindNumberProp('#prop-y','y');
@@ -2859,6 +2858,14 @@ function handlePenClick(pt){
     document.addEventListener('keydown', penKeyHandler);
   } else {
     penObj.points.push([pt.x-penObj.x, pt.y-penObj.y]);
+    // Shift-constrain: snap the new segment to horizontal or vertical
+    if(e.shiftKey && penObj.points.length >= 2){
+      const prev = penObj.points[penObj.points.length-2];
+      const cur  = penObj.points[penObj.points.length-1];
+      const dx = Math.abs(cur[0]-prev[0]), dy = Math.abs(cur[1]-prev[1]);
+      if(dx > dy) penObj.points[penObj.points.length-1][1] = prev[1]; // horizontal
+      else        penObj.points[penObj.points.length-1][0] = prev[0]; // vertical
+    }
     recalcPathBounds(penObj);
     renderObject(penObj);
   }
@@ -2909,14 +2916,20 @@ function clearPenAnchors(){
   if(el) el.remove();
 }
 // Live rubber-band line from the last placed anchor to the current cursor position.
-function drawPenPreview(pt){
+// When Shift is held, snap the preview to horizontal or vertical from the last anchor.
+function drawPenPreview(pt, shiftKey){
   clearPenPreview();
   if(!penObj || penObj.points.length===0) return;
   const last = penObj.points[penObj.points.length-1];
+  let ex = pt.x, ey = pt.y;
+  if(shiftKey){
+    const dx = Math.abs(pt.x - (penObj.x+last[0])), dy = Math.abs(pt.y - (penObj.y+last[1]));
+    if(dx > dy) ey = penObj.y+last[1]; else ex = penObj.x+last[0];
+  }
   const line = document.createElementNS(SVG_NS,'line');
   line.setAttribute('id','pen-preview-line');
   line.setAttribute('x1', penObj.x+last[0]); line.setAttribute('y1', penObj.y+last[1]);
-  line.setAttribute('x2', pt.x); line.setAttribute('y2', pt.y);
+  line.setAttribute('x2', ex); line.setAttribute('y2', ey);
   line.setAttribute('stroke','#4fb2e8'); line.setAttribute('stroke-width', 1/state.zoom);
   line.setAttribute('stroke-dasharray', `${3/state.zoom},${3/state.zoom}`);
   line.style.pointerEvents = 'none';
@@ -2949,7 +2962,7 @@ function onCanvasMouseMove(e){
     updateHoverOutline(e);
     if(penObj){
       const pt = screenToSvg(e.clientX, e.clientY);
-      drawPenPreview(pt);
+      drawPenPreview(pt, e.shiftKey);
     }
     return;
   }
@@ -3292,6 +3305,13 @@ function doResize(pt){
     if(handle.includes('s')) nh = Math.max(4, pt.y - y);
     if(handle.includes('w')){ nw = Math.max(4, x+w-pt.x); nx = x+w-nw; }
     if(handle.includes('n')){ nh = Math.max(4, y+h-pt.y); ny = y+h-nh; }
+    // Shift: preserve aspect ratio for group resize too
+    if(drag.shiftLock && handle.length===2 && w>0 && h>0){
+      const scaleW=nw/w, scaleH=nh/h, scale=Math.max(scaleW,scaleH);
+      nw=w*scale; nh=h*scale;
+      if(handle.includes('w')) nx = x+w-nw;
+      if(handle.includes('n')) ny = y+h-nh;
+    }
     const sx = w>0 ? nw/w : 1, sy = h>0 ? nh/h : 1;
     origins.forEach(orig=>{
       const o = getObj(orig.id);
@@ -3379,22 +3399,32 @@ function doRotate(pt){
   ang = Math.round(ang);
 
   if(o.type==='group' && drag.groupChildOrigins){
+    // Rotate each child around the group's center using the TOTAL delta from
+    // the drag-start angle (not accumulated deltas, which compound rounding errors).
     const delta = ang - drag.startRot;
     const rad = delta * Math.PI/180;
     drag.groupChildOrigins.forEach(orig=>{
       const child = getObj(orig.id);
       if(!child) return;
-      // orbit the child's center around the group's rotation center (drag.cx, drag.cy)
+      // orbit the child's original centre around the group's rotation center
       const ocx = orig.x + orig.w/2, ocy = orig.y + orig.h/2;
       const dx = ocx - drag.cx, dy = ocy - drag.cy;
       const nx = drag.cx + dx*Math.cos(rad) - dy*Math.sin(rad);
       const ny = drag.cy + dx*Math.sin(rad) + dy*Math.cos(rad);
       child.x = nx - orig.w/2;
       child.y = ny - orig.h/2;
-      child.rot = orig.rot + delta;
+      child.rot = (orig.rot + delta + 360) % 360;
       renderObject(child);
     });
+    // Also update the group's own rot for the selection box rotation
+    o.rot = ang;
+    renderObject(o);
+    renderSelection();
+    updatePropsPanel();
+    showRotationReadout(o, ang, !!drag.rotationSnapped);
+    return;
   }
+  // Single (non-group) object rotation
   o.rot = ang;
   renderObject(o);
   renderSelection();
@@ -3625,7 +3655,7 @@ $('#ctx-back').addEventListener('click', ()=>reorderZ('back'));
 
 // ================= CLEAR / IMPORT =================
 
-$('#btn-clear').addEventListener('click', ()=>{
+$('#btn-clear')?.addEventListener('click', ()=>{
   if(state.objects.length===0) return;
   if(confirm('Clear the entire canvas? This cannot be undone with content restored except via Undo.')){
     state.objects = [];
