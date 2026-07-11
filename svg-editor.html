@@ -906,9 +906,22 @@ select.input{ font-family:var(--sans); }
         <svg viewBox="0 0 24 24" fill="none"><path d="M5 19L19 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <span class="kbd">L</span>
       </div>
-      <div class="tool" data-tool="polygon" title="Polygon (P)">
+      <div class="tool" data-tool="polygon" title="Polygon (P)" style="position:relative;">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L21 9.5L17.5 20H6.5L3 9.5L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
         <span class="kbd">P</span>
+        <div style="position:absolute; bottom:2px; right:2px; width:12px; height:12px; display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 10 10" width="8" height="8" fill="none" style="pointer-events:none;color:var(--text-2);"><path d="M2 3L5 6L8 3" stroke="currentColor" stroke-width="1.5"/></svg>
+          <select id="polygon-tool-select" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" title="Vertices">
+            <option value="3">3 (Triangle)</option>
+            <option value="4">4 (Diamond)</option>
+            <option value="5" selected>5 (Pentagon)</option>
+            <option value="6">6 (Hexagon)</option>
+            <option value="7">7 (Heptagon)</option>
+            <option value="8">8 (Octagon)</option>
+            <option value="10">10 (Decagon)</option>
+            <option value="12">12 (Dodecagon)</option>
+          </select>
+        </div>
       </div>
       <div class="tool" data-tool="pen" title="Pen — click points, Enter/dblclick to finish (E)">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 17L10 8L14 14L20 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="17" r="1.6" fill="currentColor"/><circle cx="10" cy="8" r="1.6" fill="currentColor"/><circle cx="14" cy="14" r="1.6" fill="currentColor"/><circle cx="20" cy="5" r="1.6" fill="currentColor"/></svg>
@@ -2782,14 +2795,23 @@ bindNumberProp('#prop-radius','radius');
 bindNumberProp('#stroke-width','strokeWidth');
 bindNumberProp('#text-size','fontSize');
 
-// Per-corner radius toggle
-$('#prop-sides').addEventListener('change', (e)=>{
+// Polygon sides configuration
+function updatePolygonSides(val) {
+  const sides = parseInt(val) || 5;
+  state.polygonSides = sides;
+  if ($('#prop-sides')) $('#prop-sides').value = sides;
+  if ($('#polygon-tool-select')) $('#polygon-tool-select').value = sides;
   applyPropToSelection(o=>{
     if(o.type==='polygon'){
-      o.sides = parseInt(e.target.value) || 5;
+      o.sides = sides;
       o.points = regularPolygonPoints(o.sides, o.w, o.h);
     }
   });
+}
+$('#prop-sides').addEventListener('change', (e) => updatePolygonSides(e.target.value));
+$('#polygon-tool-select').addEventListener('change', (e) => {
+  setTool('polygon');
+  updatePolygonSides(e.target.value);
 });
 
 $('#prop-radius-per-corner-btn').addEventListener('click', ()=>{
@@ -3133,7 +3155,11 @@ function onCanvasMouseDown(e){
         const parentGroup = findParentGroup(hitId);
         if(parentGroup) hitId = parentGroup.id;
       }
-      if(!state.selectedIds.includes(hitId)) selectObject(hitId, e.shiftKey);
+      if(e.shiftKey) {
+        selectObject(hitId, true);
+      } else {
+        if(!state.selectedIds.includes(hitId)) selectObject(hitId, false);
+      }
       startMoveDrag(pt, e);
     } else {
       if(!e.shiftKey) selectObject(null);
@@ -3268,7 +3294,7 @@ function startDrawDrag(pt){
   const strokeColor = isLightColor(state.canvas.bg) ? '#1c1e21' : '#f4f5f7';
   if(state.tool==='line'){ o.points=[[0,0],[0,0]]; o.fill='none'; o.stroke=strokeColor; o.strokeWidth=2; }
   if(state.tool==='polygon'){
-    o.sides = parseInt($('#prop-sides').value) || 5;
+    o.sides = state.polygonSides || parseInt($('#polygon-tool-select').value) || 5;
     o.points = regularPolygonPoints(o.sides, 0, 0);
     o.w=0; o.h=0;
   }
@@ -3466,6 +3492,35 @@ function onCanvasMouseMove(e){
     const w = Math.abs(drag.curX-drag.startX), h = Math.abs(drag.curY-drag.startY);
     const rect = $('#marquee-rect');
     if(rect){ rect.setAttribute('x',x); rect.setAttribute('y',y); rect.setAttribute('width',w); rect.setAttribute('height',h); }
+
+    // Glow highlight for objects under the marquee
+    const hits = topLevelObjects().filter(o=> o.visible && !o.locked && o.x>=x && o.y>=y && o.x+o.w<=x+w && o.y+o.h<=y+h);
+    let glowG = $('#marquee-glows');
+    if(!glowG) {
+      glowG = document.createElementNS(SVG_NS,'g');
+      glowG.setAttribute('id', 'marquee-glows');
+      overlay.appendChild(glowG);
+    }
+    glowG.innerHTML = '';
+    hits.forEach(o => {
+      let shape = selectionOutlineFor(o, true);
+      if(!shape) {
+        const cx = o.x+o.w/2, cy = o.y+o.h/2;
+        const g = document.createElementNS(SVG_NS,'g');
+        if(o.rot) g.setAttribute('transform', `rotate(${o.rot} ${cx} ${cy})`);
+        shape = document.createElementNS(SVG_NS, 'rect');
+        shape.setAttribute('x', o.x); shape.setAttribute('y', o.y);
+        shape.setAttribute('width', o.w); shape.setAttribute('height', o.h);
+        g.appendChild(shape);
+        shape = g;
+      }
+      shape.setAttribute('fill', 'none');
+      shape.setAttribute('stroke', '#4fb2e8');
+      shape.setAttribute('stroke-width', 2 / state.zoom);
+      shape.setAttribute('opacity', '0.6');
+      shape.style.pointerEvents = 'none';
+      glowG.appendChild(shape);
+    });
   }
   else if(drag.type==='draw'){
     const o = drag.obj;
@@ -3557,11 +3612,24 @@ function onCanvasMouseUp(e){
   if(drag.type==='marquee'){
     const rectEl = $('#marquee-rect');
     if(rectEl) rectEl.remove();
+    const glowG = $('#marquee-glows');
+    if(glowG) glowG.remove();
+
     const x1=Math.min(drag.startX,drag.curX), x2=Math.max(drag.startX,drag.curX);
     const y1=Math.min(drag.startY,drag.curY), y2=Math.max(drag.startY,drag.curY);
     if(Math.abs(x2-x1)>2 || Math.abs(y2-y1)>2){
       const hits = topLevelObjects().filter(o=> o.visible && !o.locked && o.x>=x1 && o.y>=y1 && o.x+o.w<=x2 && o.y+o.h<=y2);
-      state.selectedIds = hits.map(o=>o.id);
+      if(e.shiftKey){
+        const hitIds = hits.map(o=>o.id);
+        const newSet = new Set(state.selectedIds);
+        hitIds.forEach(id => {
+          if(newSet.has(id)) newSet.delete(id);
+          else newSet.add(id);
+        });
+        state.selectedIds = Array.from(newSet);
+      } else {
+        state.selectedIds = hits.map(o=>o.id);
+      }
       renderSelection(); renderLayersList(); updatePropsPanel();
     }
   }
@@ -3580,7 +3648,7 @@ function onCanvasMouseUp(e){
       // treat as click - give default size
       o.w = o.type==='polygon'?100:80; o.h = o.type==='polygon'?100:80;
       if(o.type==='polygon'){
-        o.sides = parseInt($('#prop-sides').value) || 5;
+        o.sides = state.polygonSides || parseInt($('#polygon-tool-select').value) || 5;
         o.points = regularPolygonPoints(o.sides, 100, 100);
       }
       renderObject(o);
