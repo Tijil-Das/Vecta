@@ -1815,29 +1815,8 @@ function drawSelBoxSVG(o){
 // highlighting, or null to fall back to a plain bounding-box rectangle
 // (used for rect/ellipse/text/image, which genuinely are box-shaped).
 function selectionOutlineFor(o){
-  if(o.type==='polygon'){
-    const el = document.createElementNS(SVG_NS, o.radius>0 ? 'path' : 'polygon');
-    if(o.radius>0) el.setAttribute('d', roundedPolygonPath(o.points, o.x, o.y, o.radius));
-    else el.setAttribute('points', (o.points||[]).map(p=>`${o.x+p[0]},${o.y+p[1]}`).join(' '));
-    return el;
-  }
-  if(o.type==='line'){
-    const pts = o.points || [[0,0],[o.w,o.h]];
-    const el = document.createElementNS(SVG_NS,'line');
-    el.setAttribute('x1', o.x+pts[0][0]); el.setAttribute('y1', o.y+pts[0][1]);
-    el.setAttribute('x2', o.x+pts[1][0]); el.setAttribute('y2', o.y+pts[1][1]);
-    return el;
-  }
-  if(o.type==='path'){
-    const el = document.createElementNS(SVG_NS,'path');
-    if(o.rawPath && !o.points){
-      el.setAttribute('d', o.rawPath);
-      el.setAttribute('transform', `translate(${o.x} ${o.y})`);
-    } else {
-      el.setAttribute('d', pathDataFromPoints(o));
-    }
-    return el;
-  }
+  // Returning null forces all objects (including paths/lines) to render a standard
+  // rectangular bounding box that connects the 8 resize handles.
   return null;
 }
 
