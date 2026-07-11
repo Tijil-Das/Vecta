@@ -990,6 +990,10 @@ select.input{ font-family:var(--sans); }
 
 <!-- context menu -->
 <div id="ctxmenu">
+  <button id="ctx-cut"><span>Cut</span><span class="kbd">Ctrl+X</span></button>
+  <button id="ctx-copy"><span>Copy</span><span class="kbd">Ctrl+C</span></button>
+  <button id="ctx-paste"><span>Paste</span><span class="kbd">Ctrl+V</span></button>
+  <div class="sep"></div>
   <button id="ctx-duplicate"><span>Duplicate</span><span class="kbd">Ctrl+D</span></button>
   <button id="ctx-delete"><span>Delete</span><span class="kbd">Del</span></button>
   <div class="sep"></div>
@@ -1764,7 +1768,9 @@ function renderSelection(){
     const o = objs[0];
     drawSelBoxSVG(o);
   } else {
-    // multi-select bounding box (axis aligned, no rotation handle)
+    // multi-select bounding box with resize handles AND a rotation handle.
+    // We use 'multi-sel' as the synthetic ownerId so addHandles renders the
+    // rotate circle the same way it does for a single object.
     let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     objs.forEach(o=>{
       minX=Math.min(minX,o.x); minY=Math.min(minY,o.y);
@@ -1776,8 +1782,8 @@ function renderSelection(){
     g.setAttribute('fill','none'); g.setAttribute('stroke','#4fb2e8'); g.setAttribute('stroke-width', 1.5/state.zoom);
     g.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
     overlay.appendChild(g);
-    // corner handles for group scale
-    addHandles(minX,minY,maxX-minX,maxY-minY,0,'group');
+    // corner+edge handles for group scale, plus a rotation handle
+    addHandles(minX,minY,maxX-minX,maxY-minY,0,'multi-sel');
   }
 }
 
@@ -1868,8 +1874,8 @@ function addHandles(x,y,w,h,rot,ownerId,shapeType){
     r.classList.add('handle-hit');
     overlay.appendChild(r);
   });
-  // rotate handle
-  if(ownerId!=='group'){
+  // rotate handle — shown for all owners except the legacy 'group' sentinel
+  if(ownerId !== 'group'){
     const rr = 18/state.zoom;
     const ry = y - rr;
     const line = document.createElementNS(SVG_NS,'line');
@@ -2085,6 +2091,61 @@ function duplicateSelected(){
   renderAll();
   pushHistory();
   toast('Duplicated');
+}
+
+// ================= CUT / COPY / PASTE =================
+// Internal clipboard: stored as JSON-serialised deep copies of the selected objects.
+// Paste always generates fresh IDs so there are no ID collisions with existing objects.
+
+let _clipboard = []; // array of serialised object JSON strings
+let _pasteOffset = 0; // increments each successive paste so stacks don't overlap
+
+function copySelected(){
+  const objs = selectedObjs();
+  if(objs.length === 0) return;
+  _clipboard = objs.map(o => JSON.stringify(o));
+  _pasteOffset = 1; // reset offset so first paste lands at original + 16
+  toast(`Copied ${objs.length} object${objs.length>1?'s':''}`);
+}
+
+function cutSelected(){
+  copySelected();
+  deleteSelected();
+}
+
+function pasteClipboard(){
+  if(_clipboard.length === 0){ toast('Nothing to paste', true); return; }
+  const offset = 16 * _pasteOffset;
+  const newIds = [];
+
+  // We need an id-remap for groups so child references stay valid
+  const idMap = {};
+  const clones = _clipboard.map(str => {
+    const o = JSON.parse(str);
+    const newId = uid();
+    idMap[o.id] = newId;
+    o.id = newId;
+    o.name = o.name + (o.name.endsWith(' copy') ? '' : ' copy');
+    o.x += offset; o.y += offset;
+    return o;
+  });
+
+  // Fix group childIds to use the new mapped IDs
+  clones.forEach(o => {
+    if(o.type === 'group' && o.childIds){
+      o.childIds = o.childIds.map(cid => idMap[cid] || cid);
+    }
+    state.objects.push(o);
+    if(!clones.some(other => other.type==='group' && (other.childIds||[]).includes(o.id))){
+      newIds.push(o.id); // only top-level objects into selection
+    }
+  });
+
+  _pasteOffset++;
+  state.selectedIds = newIds;
+  renderAll();
+  pushHistory();
+  toast(`Pasted ${newIds.length} object${newIds.length>1?'s':''}`);
 }
 
 function groupSelected(){
@@ -2970,6 +3031,34 @@ function onCanvasMouseUp(e){
       renderSelection(); renderLayersList(); updatePropsPanel();
     }
   }
+  if(drag.type==='rotate-multi'){
+    // Rotate all selected objects around the combined bounding-box centre.
+    const dx = pt.x - drag.cx, dy = pt.y - drag.cy;
+    let ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    if(ang < 0) ang += 360;
+    if(ang >= 360) ang -= 360;
+    // 15° snap when shift is held
+    if(e.shiftKey){ ang = Math.round(ang/15)*15; }
+    const delta = ang - (drag.lastAng !== undefined ? drag.lastAng : ang);
+    if(drag.lastAng === undefined) { drag.lastAng = ang; drag.startAng = ang; return; }
+    drag.lastAng = ang;
+    const totalDelta = ang - drag.startAng;
+    const rad = totalDelta * Math.PI / 180;
+    drag.origins.forEach(orig => {
+      const o = getObj(orig.id);
+      if(!o) return;
+      // Rotate original centre-offset around the group centre
+      const nx = orig.ocx * Math.cos(rad) - orig.ocy * Math.sin(rad);
+      const ny = orig.ocx * Math.sin(rad) + orig.ocy * Math.cos(rad);
+      o.x = drag.cx + nx - orig.w/2;
+      o.y = drag.cy + ny - orig.h/2;
+      o.rot = (orig.rot + totalDelta + 360) % 360;
+      renderObject(o);
+    });
+    renderSelection();
+    updatePropsPanel();
+    return;
+  }
   if(drag.type==='draw'){
     const o = drag.obj;
     // For lines: a zero-size click (not a drag) gets a default diagonal; purely
@@ -2991,8 +3080,8 @@ function onCanvasMouseUp(e){
     setTool('select');
     pushHistory();
   }
-  if(drag.type==='move' || drag.type==='resize' || drag.type==='rotate'){
-    if(drag.type==='rotate') clearRotationReadout();
+  if(drag.type==='move' || drag.type==='resize' || drag.type==='rotate' || drag.type==='rotate-multi'){
+    if(drag.type==='rotate' || drag.type==='rotate-multi') clearRotationReadout();
     // if we edited a child directly (e.g. Alt+click into a group), keep the parent group's box in sync
     const idsToCheck = drag.obj ? [drag.obj.id] : (drag.origins||[]).map(o=>o.id);
     const touchedGroups = new Set();
@@ -3104,16 +3193,35 @@ function startHandleDrag(target, pt, e){
   const handle = target.dataset.handle;
   const ownerId = target.dataset.owner;
   if(handle==='rot'){
-    const o = getObj(ownerId);
-    if(!o || o.locked) { drag=null; return; }
-    if(o.type==='group'){
-      drag = {type:'rotate', obj:o, cx:o.x+o.w/2, cy:o.y+o.h/2, startRot:o.rot, groupChildOrigins: groupChildren(o).map(c=>({id:c.id,x:c.x,y:c.y,w:c.w,h:c.h,rot:c.rot}))};
-    } else {
-      drag = {type:'rotate', obj:o, cx:o.x+o.w/2, cy:o.y+o.h/2, startRot:o.rot};
+    // Single-object rotation
+    if(ownerId !== 'multi-sel'){
+      const o = getObj(ownerId);
+      if(!o || o.locked) { drag=null; return; }
+      if(o.type==='group'){
+        drag = {type:'rotate', obj:o, cx:o.x+o.w/2, cy:o.y+o.h/2, startRot:o.rot, groupChildOrigins: groupChildren(o).map(c=>({id:c.id,x:c.x,y:c.y,w:c.w,h:c.h,rot:c.rot}))};
+      } else {
+        drag = {type:'rotate', obj:o, cx:o.x+o.w/2, cy:o.y+o.h/2, startRot:o.rot};
+      }
+      return;
     }
+    // Multi-selection rotation: rotate each object around the combined bounding-box centre
+    const selObjs = selectedObjs().filter(o => !o.locked);
+    if(selObjs.length === 0){ drag=null; return; }
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    selObjs.forEach(o=>{ minX=Math.min(minX,o.x);minY=Math.min(minY,o.y);maxX=Math.max(maxX,o.x+o.w);maxY=Math.max(maxY,o.y+o.h); });
+    const mcx = (minX+maxX)/2, mcy = (minY+maxY)/2;
+    drag = {
+      type: 'rotate-multi',
+      cx: mcx, cy: mcy,
+      origins: selObjs.map(o => ({id:o.id, x:o.x, y:o.y, w:o.w, h:o.h, rot:o.rot||0,
+        // offset of each object's centre from the group centre (used during rotation)
+        ocx: o.x+o.w/2 - mcx,
+        ocy: o.y+o.h/2 - mcy,
+      })),
+    };
     return;
   }
-  if(ownerId==='group'){
+  if(ownerId==='group' || ownerId==='multi-sel'){
     const objs = selectedObjs().filter(o=>!o.locked);
     if(objs.length===0){ drag=null; return; }
     let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
@@ -3122,6 +3230,7 @@ function startHandleDrag(target, pt, e){
       origins: objs.map(o=>({id:o.id,x:o.x,y:o.y,w:o.w,h:o.h}))};
     return;
   }
+  // Single-object resize
   const o = getObj(ownerId);
   if(!o || o.locked){ drag=null; return; }
   if(o.type==='group'){
@@ -3409,6 +3518,9 @@ document.addEventListener('keydown', e=>{
 
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.key.toLowerCase()==='z'&&e.shiftKey))){ e.preventDefault(); redo(); return; }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='c'){ e.preventDefault(); copySelected(); return; }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='x'){ e.preventDefault(); cutSelected(); return; }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='v'){ e.preventDefault(); pasteClipboard(); return; }
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='d'){ e.preventDefault(); duplicateSelected(); return; }
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='g' && e.shiftKey){ e.preventDefault(); ungroupSelected(); return; }
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='g'){ e.preventDefault(); groupSelected(); return; }
@@ -3463,6 +3575,9 @@ viewport.addEventListener('contextmenu', e=>{
   ctxmenu.style.top = e.clientY+'px';
 });
 window.addEventListener('click', ()=> ctxmenu.style.display='none');
+$('#ctx-cut').addEventListener('click', cutSelected);
+$('#ctx-copy').addEventListener('click', copySelected);
+$('#ctx-paste').addEventListener('click', () => { pasteClipboard(); });
 $('#ctx-duplicate').addEventListener('click', duplicateSelected);
 $('#ctx-delete').addEventListener('click', deleteSelected);
 $('#ctx-front').addEventListener('click', ()=>reorderZ('front'));
