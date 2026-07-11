@@ -1019,6 +1019,13 @@ select.input{ font-family:var(--sans); }
         </div>
         <div class="switch on" id="toggle-pretty"><div class="knob"></div></div>
       </div>
+      <div class="toggle-row">
+        <div>
+          <div style="font-size:12.5px;font-weight:600">Include Vecta session data <span style="font-size:10px;font-weight:500;color:var(--accent);background:rgba(79,178,232,0.12);padding:1px 6px;border-radius:4px;vertical-align:middle">RECOMMENDED</span></div>
+          <div class="small-hint">Embeds your full editing session (all objects, layers, undo history) as compressed data inside the SVG. Re-opening the file in Vecta restores everything exactly. The SVG still works normally in all other apps — they simply ignore this extra data.</div>
+        </div>
+        <div class="switch on" id="toggle-meta"><div class="knob"></div></div>
+      </div>
       <div id="export-offcanvas-warning" style="display:none; background:rgba(232,102,79,0.12); border:1px solid #6b3a30; border-radius:6px; padding:10px 12px; margin-top:12px; font-size:12px; color:#f0a898;">
         ⚠ Some objects extend outside the canvas boundary and will be cropped out of the exported file — they're still visible here in the editor, but only what's inside the white page area gets exported.
       </div>
@@ -1036,9 +1043,18 @@ select.input{ font-family:var(--sans); }
         <div class="code-preview" id="export-preview"></div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" id="export-copy">Copy code</button>
-      <button class="btn primary" id="export-download">Download .svg</button>
+    <div class="modal-footer" style="flex-direction:column;gap:10px;align-items:stretch">
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="export-copy" style="flex:1">Copy code</button>
+        <button class="btn primary" id="export-download" style="flex:1">Download .svg</button>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px">
+        <button class="btn" id="export-download-flat" style="width:100%;color:var(--text-2)">
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" style="margin-right:5px;vertical-align:-2px"><path d="M2 12L14 12M4 8L12 8M6 4L10 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Flatten and export (strip Vecta data)
+        </button>
+        <div class="small-hint" style="color:var(--text-2);font-size:11px">Removes all Vecta session metadata from the exported file — produces a clean, minimal SVG. You will not be able to restore the editing session from this file. Use this when sharing artwork externally or keeping file size small.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1049,6 +1065,86 @@ select.input{ font-family:var(--sans); }
 // ===================== Vecta SVG Editor =====================
 (function(){
 'use strict';
+
+// =========== VECTA: Compression Utilities ===========
+// Uses the browser-native DEFLATE (deflate-raw) via CompressionStream/DecompressionStream.
+// Both functions are async and return Promises. All Vecta metadata is compressed before
+// embedding in the SVG and decompressed on import — significantly smaller than raw JSON.
+const VECTA_NS  = 'https://vecta.app/ns';
+const VECTA_ENC = 'deflate-b64'; // encoding identifier stored in the <x-vecta> element
+
+async function _vectaCompress(str){
+  try {
+    const bytes = new TextEncoder().encode(str);
+    const cs = new CompressionStream('deflate-raw');
+    const writer = cs.writable.getWriter();
+    writer.write(bytes); writer.close();
+    const buf = await new Response(cs.readable).arrayBuffer();
+    const arr = new Uint8Array(buf);
+    let bin = '';
+    for(let i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+    return btoa(bin);
+  } catch(e){ return null; }
+}
+
+async function _vectaDecompress(b64){
+  try {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    writer.write(arr); writer.close();
+    const buf = await new Response(ds.readable).arrayBuffer();
+    return new TextDecoder().decode(buf);
+  } catch(e){ return null; }
+}
+
+// Build the raw payload object that will be serialized + compressed into metadata.
+// History is capped at 60 entries (most-recent wins) to keep file sizes manageable.
+function _buildVectaPayload(){
+  const histSlice = history.slice(Math.max(0, history.length - 60));
+  const adjustedIdx = Math.max(0, Math.min(historyIndex - Math.max(0, history.length - 60), histSlice.length - 1));
+  return {
+    v: 1,
+    ts: Date.now(),
+    canvas: state.canvas,
+    objects: state.objects,
+    guides: state.guides,
+    history: histSlice,
+    historyIndex: adjustedIdx,
+    docName: ($('#doc-name') && $('#doc-name').value) || 'artwork',
+  };
+}
+
+// Restore a full editor session from a decompressed+parsed vecta payload.
+async function _applyVectaPayload(b64){
+  const json = await _vectaDecompress(b64);
+  if(!json) return false;
+  let data;
+  try { data = JSON.parse(json); } catch(e){ return false; }
+  if(!data || data.v !== 1) return false;
+
+  suppressHistory = true;
+  state.canvas = data.canvas || state.canvas;
+  state.objects = data.objects || [];
+  state.guides  = data.guides  || [];
+  history       = data.history || [];
+  historyIndex  = typeof data.historyIndex === 'number' ? data.historyIndex : history.length - 1;
+
+  // Recompute nextId so new objects don't collide with existing ones
+  let maxId = 0;
+  state.objects.forEach(o => {
+    const n = parseInt((o.id || '').replace('obj-', ''));
+    if(!isNaN(n) && n > maxId) maxId = n;
+  });
+  state.nextId = maxId + 1;
+  state.selectedIds = [];
+  suppressHistory = false;
+
+  if(data.docName && $('#doc-name')) $('#doc-name').value = data.docName;
+  return true;
+}
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const SYSTEM_FONT_NAMES = ['Arial','Helvetica Neue','Verdana','Trebuchet MS','Segoe UI','Georgia','Times New Roman','Courier New'];
@@ -2928,7 +3024,16 @@ let lastHoverId = null;
 function updateHoverOutline(e){
   if(state.tool !== 'select'){ clearHoverOutline(); lastHoverId = null; return; }
   const el = e.target.closest && e.target.closest('[data-id]');
-  const hitId = el ? el.dataset.id : null;
+  let hitId = el ? el.dataset.id : null;
+
+  // Proximity fallback: if the cursor didn't land on any element's exact pixel,
+  // check whether it's within ~6 screen-pixels of a visible object's boundary.
+  // Essential for thin lines, hairline strokes, and any zero-height/width shape.
+  if(!hitId){
+    const pt = screenToSvg(e.clientX, e.clientY);
+    hitId = _findNearbyObject(pt, 6 / state.zoom);
+  }
+
   const resolvedId = hitId ? ((findParentGroup(hitId)||{}).id || hitId) : null;
   if(resolvedId === lastHoverId) return;
   clearHoverOutline(); // remove any previous outline element first (this does NOT touch lastHoverId)
@@ -2960,6 +3065,38 @@ function updateHoverOutline(e){
 function clearHoverOutline(){
   const el = $('#hover-outline');
   if(el) el.remove();
+}
+
+// ---- proximity hit detection for thin objects ----
+function _ptToSegDist(p, a, b){
+  const dx = b.x-a.x, dy = b.y-a.y, lenSq = dx*dx+dy*dy;
+  if(lenSq===0) return Math.hypot(p.x-a.x, p.y-a.y);
+  const t = Math.max(0, Math.min(1, ((p.x-a.x)*dx+(p.y-a.y)*dy)/lenSq));
+  return Math.hypot(p.x-(a.x+t*dx), p.y-(a.y+t*dy));
+}
+function _isNearObject(pt, o, pad){
+  if(pt.x < o.x-pad || pt.x > o.x+o.w+pad || pt.y < o.y-pad || pt.y > o.y+o.h+pad) return false;
+  if(o.type==='line'){
+    const pts = o.points||[[0,0],[o.w,o.h]];
+    return _ptToSegDist(pt,{x:o.x+pts[0][0],y:o.y+pts[0][1]},{x:o.x+pts[1][0],y:o.y+pts[1][1]})<=pad;
+  }
+  if(o.type==='path' && o.points && o.points.length>1){
+    for(let i=1;i<o.points.length;i++){
+      const a={x:o.x+o.points[i-1][0],y:o.y+o.points[i-1][1]};
+      const b={x:o.x+o.points[i][0],  y:o.y+o.points[i][1]};
+      if(_ptToSegDist(pt,a,b)<=pad) return true;
+    }
+    return false;
+  }
+  return true; // padded bbox sufficient for rects, ellipses, text, images
+}
+function _findNearbyObject(pt, pad){
+  const objs = [...topLevelObjects()].reverse();
+  for(const o of objs){
+    if(!o.visible||o.locked) continue;
+    if(_isNearObject(pt,o,pad)) return o.id;
+  }
+  return null;
 }
 
 // ---- resize / rotate handles ----
@@ -3378,12 +3515,39 @@ function importRasterImage(dataUrl, file){
   img.src = dataUrl;
 }
 
-function importSvgString(str){
+async function importSvgString(str){
   try{
     const parser = new DOMParser();
     const doc = parser.parseFromString(str, 'image/svg+xml');
     const svgEl = doc.querySelector('svg');
     if(!svgEl) throw new Error('no svg');
+
+    // ── Check for Vecta session metadata first ──────────────────────────────
+    // The <x-vecta> element lives inside <metadata> and carries the full
+    // compressed editor state from the previous session. If found and valid,
+    // we restore the entire session (objects, history, canvas, guides) and
+    // skip the generic shape-by-shape import entirely.
+    const metaEl = svgEl.querySelector('metadata');
+    if(metaEl){
+      // DOMParser may parse the custom element under the SVG or HTML namespace;
+      // check both by localName and by attribute.
+      const xv = Array.from(metaEl.children).find(
+        el => el.localName === 'x-vecta' || el.getAttribute('enc') === VECTA_ENC
+      );
+      if(xv && xv.textContent.trim()){
+        const restored = await _applyVectaPayload(xv.textContent.trim());
+        if(restored){
+          renderAll();
+          syncCanvasInputs();
+          applyCanvasFrame();
+          zoomToFit();
+          updateUndoRedoButtons();
+          toast('Vecta file restored — full editing history loaded 🗃');
+          return;
+        }
+      }
+    }
+    // ── Fall back to shape-by-shape import (plain SVG from other apps) ──────
     const vb = svgEl.getAttribute('viewBox');
     let offX=0, offY=0;
     if(vb){ const parts=vb.split(/[\s,]+/).map(Number); offX=parts[0]; offY=parts[1]; }
@@ -3502,18 +3666,18 @@ function shiftPathData(d, dx, dy){
 
 // ================= EXPORT =================
 
-function buildExportSvg(includeBg, pretty){
+// Builds an SVG string for export.
+// metaCompressed: a base64 deflate-encoded string to embed as Vecta session data;
+//   pass null to omit it entirely ("flatten" mode — clean standard SVG output).
+// The <x-vecta> metadata block is fully SVG-spec-compliant and invisible to all
+// other SVG renderers; they simply skip unknown <metadata> content.
+function buildExportSvg(includeBg, pretty, metaCompressed){
   const {w,h,bg} = state.canvas;
   const svg = document.createElementNS(SVG_NS,'svg');
   svg.setAttribute('xmlns', SVG_NS);
   svg.setAttribute('width', w);
   svg.setAttribute('height', h);
   svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  // Explicit rather than relying on the browser default: only what's inside the
-  // white page area (0,0 to w,h) should appear in the exported file, matching what
-  // the "Canvas" bounds represent — even though the live editor intentionally shows
-  // off-page content (so you can stage objects just outside the artboard, same as
-  // Figma/Illustrator do), so this can visibly differ from what you see while editing.
   svg.setAttribute('style', 'overflow:hidden');
 
   const exportDefs = document.createElementNS(SVG_NS,'defs');
@@ -3546,11 +3710,19 @@ function buildExportSvg(includeBg, pretty){
     svg.appendChild(el);
   });
 
-  // drop the defs block entirely if nothing used it (keeps output tidy)
   if(!exportDefs.hasChildNodes()) exportDefs.remove();
 
   let str = new XMLSerializer().serializeToString(svg);
   str = '<?xml version="1.0" encoding="UTF-8"?>\n' + str;
+
+  // Inject Vecta session metadata as an SVG-compliant <metadata> block.
+  // Placed immediately after the root <svg> opening tag so it doesn't
+  // interfere with any renderer that processes children sequentially.
+  if(metaCompressed){
+    const metaBlock = `<metadata><x-vecta xmlns="${VECTA_NS}" v="1" enc="${VECTA_ENC}">${metaCompressed}</x-vecta></metadata>`;
+    str = str.replace(/(<svg[^>]*>)/, '$1' + metaBlock);
+  }
+
   if(pretty) str = prettyPrintXml(str);
   return str;
 }
@@ -3580,7 +3752,7 @@ function prettyPrintXml(xml){
 }
 
 const exportModal = $('#export-modal');
-let exportOpts = { bg:false, pretty:true };
+let exportOpts = { bg:false, pretty:true, meta:true };
 
 function openExportModal(){
   $('#toggle-bg-label').textContent = `Include canvas background color (${state.canvas.bg})`;
@@ -3588,8 +3760,13 @@ function openExportModal(){
   exportModal.classList.add('open');
 }
 function updateExportPreview(){
-  const code = buildExportSvg(exportOpts.bg, exportOpts.pretty);
-  $('#export-preview').textContent = code.length>4000 ? code.slice(0,4000)+'\n...' : code;
+  // Preview shows the SVG without the compressed metadata block (it would just be
+  // a long base64 blob that obscures the actual SVG code from the preview pane).
+  // The real copy/download operations include the metadata when exportOpts.meta is on.
+  const code = buildExportSvg(exportOpts.bg, exportOpts.pretty, null);
+  let previewCode = code;
+  if(exportOpts.meta) previewCode = previewCode.replace(/(<svg[^>]*>)/, '$1\n  <!-- Vecta session data will be embedded here (compressed, ~hidden from preview) -->');
+  $('#export-preview').textContent = previewCode.length>4000 ? previewCode.slice(0,4000)+'\n...' : previewCode;
   const svgOnly = code.replace(/^<\?xml[^>]*\?>\s*/, '');
   $('#export-visual-preview').innerHTML = svgOnly;
   const previewSvgEl = $('#export-visual-preview svg');
@@ -3611,7 +3788,7 @@ function updateExportPreview(){
   $('#export-offcanvas-warning').style.display = hasOffCanvas ? 'block' : 'none';
 
   // warn if any text uses a font that isn't a common system default
-  const usesWebFont = state.objects.some(o=> o.type==='text' && !SYSTEM_FONT_NAMES.some(f=> o.fontFamily.includes(f)));
+  const usesWebFont = state.objects.some(o=> o.type==='text' && !SYSTEM_FONT_NAMES.some(f=>o.fontFamily.includes(f)));
   $('#export-font-warning').style.display = usesWebFont ? 'block' : 'none';
 }
 $('#btn-export').addEventListener('click', openExportModal);
@@ -3628,22 +3805,43 @@ $('#toggle-pretty').addEventListener('click', function(){
   exportOpts.pretty = this.classList.contains('on');
   updateExportPreview();
 });
-
-$('#export-copy').addEventListener('click', ()=>{
-  const code = buildExportSvg(exportOpts.bg, exportOpts.pretty);
-  navigator.clipboard.writeText(code).then(()=> toast('SVG code copied to clipboard'));
+$('#toggle-meta').addEventListener('click', function(){
+  this.classList.toggle('on');
+  exportOpts.meta = this.classList.contains('on');
+  updateExportPreview();
 });
-$('#export-download').addEventListener('click', ()=>{
-  const code = buildExportSvg(exportOpts.bg, exportOpts.pretty);
+
+// Helper: download an SVG string as a file
+function _downloadSvg(code, suffix){
   const blob = new Blob([code], {type:'image/svg+xml'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const name = ($('#doc-name').value || 'artwork').trim().replace(/[^a-z0-9\-_ ]/gi,'') || 'artwork';
-  a.href = url; a.download = name + '.svg';
+  const base = ($('#doc-name').value || 'artwork').trim().replace(/[^a-z0-9\-_ ]/gi,'') || 'artwork';
+  a.href = url; a.download = base + (suffix||'') + '.svg';
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+}
+
+$('#export-copy').addEventListener('click', async ()=>{
+  let compressed = null;
+  if(exportOpts.meta){ compressed = await _vectaCompress(JSON.stringify(_buildVectaPayload())); }
+  const code = buildExportSvg(exportOpts.bg, exportOpts.pretty, compressed);
+  navigator.clipboard.writeText(code).then(()=> toast('SVG code copied to clipboard'));
+});
+$('#export-download').addEventListener('click', async ()=>{
+  let compressed = null;
+  if(exportOpts.meta){ compressed = await _vectaCompress(JSON.stringify(_buildVectaPayload())); }
+  const code = buildExportSvg(exportOpts.bg, exportOpts.pretty, compressed);
+  _downloadSvg(code);
   exportModal.classList.remove('open');
-  toast('SVG downloaded');
+  toast(exportOpts.meta ? 'SVG with session data downloaded' : 'SVG downloaded');
+});
+$('#export-download-flat').addEventListener('click', ()=>{
+  // Flatten = no Vecta metadata at all, regardless of toggle state
+  const code = buildExportSvg(exportOpts.bg, exportOpts.pretty, null);
+  _downloadSvg(code, '-flat');
+  exportModal.classList.remove('open');
+  toast('Flattened SVG downloaded (no Vecta data)');
 });
 
 // ================= TOAST =================
