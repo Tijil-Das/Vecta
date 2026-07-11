@@ -433,8 +433,19 @@ input{font-family:inherit; color:inherit;}
 /* Bottom HUD removed */
 #hud{ display:none; }
 
-/* RIGHT PANEL hidden */
-#rightpanel{ display:none !important; }
+/* Right panel: fixed floating overlay on right edge, shown when object selected */
+#rightpanel{
+  display:none;
+  position:fixed; right:0; top:var(--topbar-h,42px); bottom:0;
+  width:280px; flex-direction:column;
+  background:var(--bg-1); border-left:1px solid var(--line);
+  overflow-y:auto; overflow-x:hidden;
+  z-index:100;
+  box-shadow:-4px 0 16px rgba(0,0,0,0.25);
+}
+#rightpanel .panel-section{ padding:10px 12px; }
+/* Arrange: pushed to bottom */
+#panel-arrange-actions{ order:99; margin-top:auto; border-top:1px solid var(--line); border-bottom:none; }
 
 .empty-state{
   color:var(--text-2); font-size:12px; text-align:center; padding:30px 10px; line-height:1.6;
@@ -518,8 +529,10 @@ select.input{ font-family:var(--sans); }
   color:var(--text-2); font-size:12px; text-align:center; padding:30px 10px; line-height:1.6;
 }
 
-/* Layers list */
+/* Layers section: hidden */
 #layers-list{ max-height:260px; overflow-y:auto; }
+/* Hide the entire layers panel-section */
+.panel-section:has(#layers-list){ display:none !important; }
 .layer-item{
   display:flex; align-items:center; gap:6px;
   padding:6px 6px; border-radius:5px;
@@ -955,7 +968,41 @@ select.input{ font-family:var(--sans); }
           </div>
           <div class="row xy-grid">
             <div class="field"><span class="field-label">Rotation°</span><input class="input" id="prop-rot" type="number"></div>
-            <div class="field" id="prop-radius-wrap"><span class="field-label">Corner radius</span><input class="input" id="prop-radius" type="number" min="0"></div>
+            <div class="field" id="prop-radius-wrap">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <span class="field-label" style="margin:0">Corner radius</span>
+                <button id="prop-radius-per-corner-btn" title="Per-corner radii" style="background:none;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:9.5px;color:var(--text-2);cursor:pointer;font-family:inherit;transition:background .12s,color .12s;">Per corner</button>
+              </div>
+              <input class="input" id="prop-radius" type="number" min="0" placeholder="All corners">
+              <div id="prop-radii-grid" style="display:none;margin-top:6px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                  <div class="field">
+                    <span class="field-label" style="display:flex;align-items:center;gap:3px;">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 9 L2 3 Q2 1 4 1 L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> TL
+                    </span>
+                    <input class="input" id="prop-radius-tl" type="number" min="0" placeholder="0">
+                  </div>
+                  <div class="field">
+                    <span class="field-label" style="display:flex;align-items:center;gap:3px;">
+                      TR <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M8 9 L8 3 Q8 1 6 1 L1 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </span>
+                    <input class="input" id="prop-radius-tr" type="number" min="0" placeholder="0">
+                  </div>
+                  <div class="field">
+                    <span class="field-label" style="display:flex;align-items:center;gap:3px;">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 1 L2 7 Q2 9 4 9 L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> BL
+                    </span>
+                    <input class="input" id="prop-radius-bl" type="number" min="0" placeholder="0">
+                  </div>
+                  <div class="field">
+                    <span class="field-label" style="display:flex;align-items:center;gap:3px;">
+                      BR <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M8 1 L8 7 Q8 9 6 9 L1 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </span>
+                    <input class="input" id="prop-radius-br" type="number" min="0" placeholder="0">
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div id="fill-section">
@@ -1777,9 +1824,18 @@ function updateElAttrs(el, o, targetDefs){
 
   switch(o.type){
     case 'rect':
-      el.setAttribute('x', o.x); el.setAttribute('y', o.y);
-      el.setAttribute('width', Math.max(0,o.w)); el.setAttribute('height', Math.max(0,o.h));
-      el.setAttribute('rx', o.radius||0); el.setAttribute('ry', o.radius||0);
+      if(o.radii && o.radii.some(r=>r>0)){
+        // Per-corner radii: render as path
+        const {x,y,w,h} = o;
+        const [tl,tr,br,bl] = o.radii.map(r=>Math.max(0,r||0));
+        const W = Math.max(0,w), H = Math.max(0,h);
+        el.setAttribute('d',
+          `M${x+tl},${y} H${x+W-tr} Q${x+W},${y} ${x+W},${y+tr} V${y+H-br} Q${x+W},${y+H} ${x+W-br},${y+H} H${x+bl} Q${x},${y+H} ${x},${y+H-bl} V${y+tl} Q${x},${y} ${x+tl},${y} Z`);
+      } else {
+        el.setAttribute('x', o.x); el.setAttribute('y', o.y);
+        el.setAttribute('width', Math.max(0,o.w)); el.setAttribute('height', Math.max(0,o.h));
+        el.setAttribute('rx', o.radius||0); el.setAttribute('ry', o.radius||0);
+      }
       break;
     case 'ellipse':
       el.setAttribute('cx', o.x + o.w/2); el.setAttribute('cy', o.y + o.h/2);
@@ -1933,7 +1989,8 @@ function renderObject(o){
 function tagFor(o){
   const type = o.type;
   if(type==='polygon') return (o.radius>0) ? 'path' : 'polygon';
-  return {rect:'rect', ellipse:'ellipse', line:'line', path:'path', text:'text', image:'image'}[type] || 'rect';
+  if(type==='rect') return (o.radii && o.radii.some(r=>r>0)) ? 'path' : 'rect';
+  return type;
 }
 
 let defsEl = null;
@@ -2415,12 +2472,15 @@ function ungroupSelected(){
 function updatePropsPanel(){
   const objs = selectedObjs();
   const arrangePanel = $('#panel-arrange-actions');
+  const rightPanel = $('#rightpanel');
   if(objs.length===0){
     $('#props-empty').style.display='block';
     $('#props-content').style.display='none';
     arrangePanel.style.display = 'none';
+    if(rightPanel) rightPanel.style.display = 'none';
     return;
   }
+  if(rightPanel) rightPanel.style.display = 'flex';
   arrangePanel.style.display = 'block';
   // Group only makes sense with 2+ things selected; Ungroup only makes sense
   // when a group is actually selected — no point showing buttons that can't do anything.
@@ -2444,8 +2504,23 @@ function updatePropsPanel(){
   $('#prop-w').value = round2(o.w);
   $('#prop-h').value = round2(o.h);
   $('#prop-rot').value = round2(o.rot);
-  $('#prop-radius-wrap').style.display = (o.type==='rect' || o.type==='polygon' || (o.type==='path' && o.closed && o.points)) ? 'block':'none';
+  const isRadiusSupported = (o.type==='rect' || o.type==='polygon' || (o.type==='path' && o.closed && o.points));
+  $('#prop-radius-wrap').style.display = isRadiusSupported ? 'block':'none';
   $('#prop-radius').value = o.radius||0;
+  // Per-corner only supported for rect
+  const perCornerActive = o.type==='rect' && Array.isArray(o.radii);
+  $('#prop-radii-grid').style.display = perCornerActive ? 'block' : 'none';
+  $('#prop-radius').style.opacity = perCornerActive ? '0.45' : '1';
+  $('#prop-radius-per-corner-btn').style.background = perCornerActive ? 'var(--accent-dim)' : '';
+  $('#prop-radius-per-corner-btn').style.color = perCornerActive ? 'var(--accent)' : '';
+  $('#prop-radius-per-corner-btn').style.borderColor = perCornerActive ? 'var(--accent)' : '';
+  if(perCornerActive){
+    const [tl,tr,br,bl] = o.radii;
+    $('#prop-radius-tl').value = tl||0;
+    $('#prop-radius-tr').value = tr||0;
+    $('#prop-radius-br').value = br||0;
+    $('#prop-radius-bl').value = bl||0;
+  }
 
   // Groups have no fill/stroke/opacity of their own — hide those blocks.
   // Open paths (freehand/pen strokes) have no fillable interior, so fill is hidden too —
@@ -2643,6 +2718,40 @@ bindNumberProp('#prop-rot','rot');
 bindNumberProp('#prop-radius','radius');
 bindNumberProp('#stroke-width','strokeWidth');
 bindNumberProp('#text-size','fontSize');
+
+// Per-corner radius toggle
+$('#prop-radius-per-corner-btn').addEventListener('click', ()=>{
+  const objs = selectedObjs();
+  if(!objs.length) return;
+  const o = objs[0];
+  if(o.type !== 'rect') return;
+  if(Array.isArray(o.radii)){
+    // Turn off — remove radii, keep radius
+    applyPropToSelection(o=>{ delete o.radii; });
+  } else {
+    // Turn on — seed all corners from current global radius
+    const r = o.radius||0;
+    applyPropToSelection(o=>{ o.radii = [r,r,r,r]; });
+  }
+  updatePropsPanel();
+  pushHistory();
+});
+
+// Per-corner radius inputs: [TL, TR, BR, BL]
+function bindCornerRadius(id, idx){
+  $(id).addEventListener('input', e=>{
+    const v = Math.max(0, parseFloat(e.target.value)||0);
+    applyPropToSelection(o=>{
+      if(!Array.isArray(o.radii)) o.radii = [0,0,0,0];
+      o.radii[idx] = v;
+    });
+  });
+  $(id).addEventListener('change', ()=>pushHistory());
+}
+bindCornerRadius('#prop-radius-tl', 0);
+bindCornerRadius('#prop-radius-tr', 1);
+bindCornerRadius('#prop-radius-br', 2);
+bindCornerRadius('#prop-radius-bl', 3);
 
 $('#fill-color').addEventListener('input', e=>{
   applyPropToSelection(o=>{ o.fill = e.target.value; o.gradient = null; });
