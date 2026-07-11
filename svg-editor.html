@@ -886,9 +886,10 @@ select.input{ font-family:var(--sans); }
 
     <!-- TOOL RAIL -->
     <div id="toolrail">
-      <div class="tool active" data-tool="select" title="Move / Select (V)">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M5 3L19 12L12 13L9 20L5 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="currentColor" fill-opacity="0.15"/></svg>
+      <div class="tool active" data-tool="select" id="tool-select-btn" title="Move / Select (V) · Double-click to toggle Lasso Mode">
+        <svg id="tool-select-icon" viewBox="0 0 24 24" fill="none"><path d="M5 3L19 12L12 13L9 20L5 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="currentColor" fill-opacity="0.15"/></svg>
         <span class="kbd">V</span>
+        <span id="select-mode-badge" style="position:absolute;bottom:2px;right:2px;width:10px;height:10px;border-radius:1px;background:var(--accent);display:flex;align-items:center;justify-content:center;pointer-events:none;"></span>
       </div>
       <div class="tool" data-tool="rect" title="Rectangle (R)">
         <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="6" width="16" height="12" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
@@ -1495,7 +1496,6 @@ async function _applyVectaPayload(b64){
   if(data.docName && $('#doc-name')) $('#doc-name').value = data.docName;
   return true;
 }
-
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const SYSTEM_FONT_NAMES = ['Arial','Helvetica Neue','Verdana','Trebuchet MS','Segoe UI','Georgia','Times New Roman','Courier New'];
 
@@ -1506,6 +1506,7 @@ const state = {
   selectedIds: [],
   nextId: 1,
   tool: 'select',
+  selectMode: 'rect', // 'rect' | 'lasso'
   zoom: 1,
   panX: 60, panY: 40,
   guides: [], // {id, axis:'v'|'h', pos} — draggable canvas guide lines, in SVG canvas coordinates
@@ -2154,6 +2155,38 @@ function renderSelection(){
     rect.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
     g.appendChild(rect);
     overlay.appendChild(g);
+
+    // Draw solid glow on each selected object so they stand out clearly
+    objs.forEach(o => {
+      const ocx = o.x+o.w/2, ocy = o.y+o.h/2;
+      let glowShape = selectionOutlineFor(o, true);
+      if(!glowShape){
+        const gg = document.createElementNS(SVG_NS,'g');
+        if(o.rot) gg.setAttribute('transform', `rotate(${o.rot} ${ocx} ${ocy})`);
+        const gr = document.createElementNS(SVG_NS,'rect');
+        gr.setAttribute('x',o.x); gr.setAttribute('y',o.y);
+        gr.setAttribute('width',o.w); gr.setAttribute('height',o.h);
+        gg.appendChild(gr);
+        glowShape = gg;
+      } else {
+        if(o.rot){
+          if(o.type==='path' && o.rawPath && !o.points){
+            glowShape.setAttribute('transform',`translate(${o.x} ${o.y}) rotate(${o.rot} ${o.w/2} ${o.h/2})`);
+          } else {
+            glowShape.setAttribute('transform',`rotate(${o.rot} ${ocx} ${ocy})`);
+          }
+        } else if(o.type==='path' && o.rawPath && !o.points){
+          glowShape.setAttribute('transform',`translate(${o.x} ${o.y})`);
+        }
+      }
+      glowShape.setAttribute('fill','rgba(79,178,232,0.18)');
+      glowShape.setAttribute('stroke','#4fb2e8');
+      glowShape.setAttribute('stroke-width', 2/state.zoom);
+      glowShape.style && (glowShape.style.pointerEvents = 'none');
+      // Apply glow filter for vivid effect
+      glowShape.setAttribute('filter','url(#sel-glow)');
+      overlay.appendChild(glowShape);
+    });
     
     addHandles(minX,minY,maxX-minX,maxY-minY,rot,'multi-sel');
   }
@@ -3157,12 +3190,45 @@ const CURSOR_PEN = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2
 function setTool(name){
   state.tool = name;
   $$('.tool[data-tool]').forEach(t=>t.classList.toggle('active', t.dataset.tool===name));
-  if(name==='select') viewport.style.cursor = CURSOR_SELECT;
+  if(name==='select') viewport.style.cursor = (state.selectMode==='lasso') ? 'crosshair' : CURSOR_SELECT;
   else if(name==='pen') viewport.style.cursor = CURSOR_PEN;
   else viewport.style.cursor = CURSOR_DRAW;
+  updateSelectModeBadge();
 }
 
+function updateSelectModeBadge(){
+  const badge = $('#select-mode-badge');
+  if(!badge) return;
+  const isLasso = state.selectMode === 'lasso';
+  // Show a tiny lasso or rect icon inside the badge
+  badge.title = isLasso ? 'Lasso Mode — dbl-click to switch to Rect' : 'Rect Mode — dbl-click to switch to Lasso';
+  badge.innerHTML = isLasso
+    ? `<svg viewBox="0 0 10 10" fill="none" width="8" height="8"><path d="M5 1 C2 1 1 3 1 5 C1 8 3 9 5 9 C7 9 9 7.5 9 5.5 L6 5 L9 3" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>`
+    : `<svg viewBox="0 0 10 10" fill="none" width="8" height="8"><rect x="1" y="2" width="8" height="6" rx="0.5" stroke="#fff" stroke-width="1.2"/></svg>`;
+}
+
+// Override click behaviour for select button to separate single/double click
+(function(){
+  const btn = $('#tool-select-btn');
+  if(!btn) return;
+  let clickTimer = null;
+  btn.addEventListener('click', (e)=>{
+    // Single click: just activate tool
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(()=>{
+      setTool('select');
+    }, 200);
+  });
+  btn.addEventListener('dblclick', (e)=>{
+    clearTimeout(clickTimer);
+    // Toggle mode
+    state.selectMode = (state.selectMode === 'lasso') ? 'rect' : 'lasso';
+    setTool('select'); // re-apply cursor + badge
+  });
+})();
+
 $$('.tool[data-tool]').forEach(t=>{
+  if(t.id === 'tool-select-btn') return; // handled above
   t.addEventListener('click', ()=> setTool(t.dataset.tool));
 });
 
@@ -3381,6 +3447,19 @@ function startMoveDrag(pt, e){
 }
 
 function startMarqueeDrag(pt){
+  if(state.selectMode === 'lasso'){
+    drag = {type:'lasso', points:[pt], curX:pt.x, curY:pt.y};
+    const path = document.createElementNS(SVG_NS,'path');
+    path.setAttribute('id','lasso-path');
+    path.setAttribute('fill','rgba(79,178,232,0.10)');
+    path.setAttribute('stroke','#4fb2e8');
+    path.setAttribute('stroke-width', 1/state.zoom);
+    path.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
+    path.setAttribute('stroke-linejoin','round');
+    path.setAttribute('stroke-linecap','round');
+    overlay.appendChild(path);
+    return;
+  }
   drag = {type:'marquee', startX:pt.x, startY:pt.y, curX:pt.x, curY:pt.y};
   const rect = document.createElementNS(SVG_NS,'rect');
   rect.setAttribute('id','marquee-rect');
@@ -3388,6 +3467,36 @@ function startMarqueeDrag(pt){
   rect.setAttribute('stroke','#4fb2e8');
   rect.setAttribute('stroke-width', 1/state.zoom);
   overlay.appendChild(rect);
+}
+
+function buildLassoPath(points){
+  if(!points.length) return '';
+  return 'M' + points.map(p=>`${p.x},${p.y}`).join('L') + 'Z';
+}
+
+// Point-in-polygon using ray casting
+function pointInPolygon(px, py, poly){
+  let inside = false;
+  for(let i=0,j=poly.length-1; i<poly.length; j=i++){
+    const xi=poly[i].x, yi=poly[i].y, xj=poly[j].x, yj=poly[j].y;
+    const intersect = ((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi);
+    if(intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Check if 50%+ of object bbox area overlaps lasso polygon
+function lassoHit50(o, poly){
+  // Sample on a grid: count interior bbox sample points inside polygon
+  const step = Math.max(2, Math.min(o.w, o.h) / 6);
+  let total = 0, inside = 0;
+  for(let sy = o.y; sy <= o.y+o.h; sy += step){
+    for(let sx = o.x; sx <= o.x+o.w; sx += step){
+      total++;
+      if(pointInPolygon(sx, sy, poly)) inside++;
+    }
+  }
+  return total > 0 && inside/total >= 0.5;
 }
 
 function startDrawDrag(pt){
@@ -3595,8 +3704,16 @@ function onCanvasMouseMove(e){
     const rect = $('#marquee-rect');
     if(rect){ rect.setAttribute('x',x); rect.setAttribute('y',y); rect.setAttribute('width',w); rect.setAttribute('height',h); }
 
-    // Glow highlight for objects under the marquee
-    const hits = topLevelObjects().filter(o=> o.visible && !o.locked && o.x>=x && o.y>=y && o.x+o.w<=x+w && o.y+o.h<=y+h);
+    // Glow highlight for objects under the marquee — using 50% overlap rule
+    function marqueeHit50(o, x, y, w, h){
+      const ix1 = Math.max(o.x, x), iy1 = Math.max(o.y, y);
+      const ix2 = Math.min(o.x+o.w, x+w), iy2 = Math.min(o.y+o.h, y+h);
+      if(ix2 <= ix1 || iy2 <= iy1) return false;
+      const interArea = (ix2-ix1)*(iy2-iy1);
+      const objArea = o.w * o.h;
+      return objArea > 0 && interArea / objArea >= 0.5;
+    }
+    const hits = topLevelObjects().filter(o=> o.visible && !o.locked && marqueeHit50(o, x, y, w, h));
     let glowG = $('#marquee-glows');
     if(!glowG) {
       glowG = document.createElementNS(SVG_NS,'g');
@@ -3627,6 +3744,40 @@ function onCanvasMouseMove(e){
             shape.setAttribute('transform', `translate(${o.x} ${o.y})`);
           }
         }
+      }
+      shape.setAttribute('fill', 'rgba(79,178,232,0.25)');
+      shape.setAttribute('stroke', '#4fb2e8');
+      shape.setAttribute('stroke-width', 1.5 / state.zoom);
+      shape.style.pointerEvents = 'none';
+      glowG.appendChild(shape);
+    });
+  }
+  else if(drag.type==='lasso'){
+    drag.points.push(pt);
+    const lassoEl = $('#lasso-path');
+    if(lassoEl) lassoEl.setAttribute('d', buildLassoPath(drag.points));
+    // Draw glows for objects that would be captured
+    let glowG = $('#marquee-glows');
+    if(!glowG) {
+      glowG = document.createElementNS(SVG_NS,'g');
+      glowG.setAttribute('id', 'marquee-glows');
+      overlay.appendChild(glowG);
+    }
+    glowG.innerHTML = '';
+    const hits = topLevelObjects().filter(o=> o.visible && !o.locked && lassoHit50(o, drag.points));
+    hits.forEach(o => {
+      let shape = selectionOutlineFor(o, true);
+      const cx = o.x+o.w/2, cy = o.y+o.h/2;
+      if(!shape) {
+        const g = document.createElementNS(SVG_NS,'g');
+        if(o.rot) g.setAttribute('transform', `rotate(${o.rot} ${cx} ${cy})`);
+        shape = document.createElementNS(SVG_NS, 'rect');
+        shape.setAttribute('x', o.x); shape.setAttribute('y', o.y);
+        shape.setAttribute('width', o.w); shape.setAttribute('height', o.h);
+        g.appendChild(shape); shape = g;
+      } else {
+        if(o.rot) shape.setAttribute('transform', (o.type==='path' && o.rawPath && !o.points) ? `translate(${o.x} ${o.y}) rotate(${o.rot} ${o.w/2} ${o.h/2})` : `rotate(${o.rot} ${cx} ${cy})`);
+        else if(o.type==='path' && o.rawPath && !o.points) shape.setAttribute('transform', `translate(${o.x} ${o.y})`);
       }
       shape.setAttribute('fill', 'rgba(79,178,232,0.25)');
       shape.setAttribute('stroke', '#4fb2e8');
@@ -3732,7 +3883,15 @@ function onCanvasMouseUp(e){
     const x1=Math.min(drag.startX,drag.curX), x2=Math.max(drag.startX,drag.curX);
     const y1=Math.min(drag.startY,drag.curY), y2=Math.max(drag.startY,drag.curY);
     if(Math.abs(x2-x1)>2 || Math.abs(y2-y1)>2){
-      const hits = topLevelObjects().filter(o=> o.visible && !o.locked && o.x>=x1 && o.y>=y1 && o.x+o.w<=x2 && o.y+o.h<=y2);
+      function marqueeHit50(o, x1, y1, x2, y2){
+        const ix1 = Math.max(o.x, x1), iy1 = Math.max(o.y, y1);
+        const ix2 = Math.min(o.x+o.w, x2), iy2 = Math.min(o.y+o.h, y2);
+        if(ix2 <= ix1 || iy2 <= iy1) return false;
+        const interArea = (ix2-ix1)*(iy2-iy1);
+        const objArea = o.w * o.h;
+        return objArea > 0 && interArea / objArea >= 0.5;
+      }
+      const hits = topLevelObjects().filter(o=> o.visible && !o.locked && marqueeHit50(o, x1, y1, x2, y2));
       if(e.shiftKey){
         const hitIds = hits.map(o=>o.id);
         const newSet = new Set(state.selectedIds);
@@ -3746,6 +3905,26 @@ function onCanvasMouseUp(e){
       }
       renderSelection(); renderLayersList(); updatePropsPanel();
     }
+  }
+  if(drag.type==='lasso'){
+    const lassoEl = $('#lasso-path');
+    if(lassoEl) lassoEl.remove();
+    const glowG = $('#marquee-glows');
+    if(glowG) glowG.remove();
+    if(drag.points.length > 3){
+      const hits = topLevelObjects().filter(o=> o.visible && !o.locked && lassoHit50(o, drag.points));
+      if(e.shiftKey){
+        const hitIds = hits.map(o=>o.id);
+        const newSet = new Set(state.selectedIds);
+        hitIds.forEach(id => { if(newSet.has(id)) newSet.delete(id); else newSet.add(id); });
+        state.selectedIds = Array.from(newSet);
+      } else {
+        state.selectedIds = hits.map(o=>o.id);
+      }
+      renderSelection(); renderLayersList(); updatePropsPanel();
+    }
+    drag = null;
+    return;
   }
   if(drag.type==='rotate-multi'){
     // final cleanup on mouseUp — nothing extra needed, rotate-multi is fully handled in mousemove
@@ -5264,6 +5443,28 @@ function initTheme(){
 // ================= INIT =================
 
 function init(){
+  // Inject the selection glow filter into the overlay SVG once
+  (function injectSelGlowFilter(){
+    const defs = document.createElementNS(SVG_NS,'defs');
+    const filt = document.createElementNS(SVG_NS,'filter');
+    filt.setAttribute('id','sel-glow');
+    filt.setAttribute('x','-40%'); filt.setAttribute('y','-40%');
+    filt.setAttribute('width','180%'); filt.setAttribute('height','180%');
+    // Dilate the shape slightly, then blur it
+    const morphology = document.createElementNS(SVG_NS,'feMorphology');
+    morphology.setAttribute('in','SourceGraphic'); morphology.setAttribute('operator','dilate'); morphology.setAttribute('radius','1.5');
+    morphology.setAttribute('result','expanded');
+    const blur = document.createElementNS(SVG_NS,'feGaussianBlur');
+    blur.setAttribute('in','expanded'); blur.setAttribute('stdDeviation','3');
+    blur.setAttribute('result','glow');
+    const merge = document.createElementNS(SVG_NS,'feMerge');
+    const mn1 = document.createElementNS(SVG_NS,'feMergeNode'); mn1.setAttribute('in','glow');
+    const mn2 = document.createElementNS(SVG_NS,'feMergeNode'); mn2.setAttribute('in','SourceGraphic');
+    merge.appendChild(mn1); merge.appendChild(mn2);
+    filt.appendChild(morphology); filt.appendChild(blur); filt.appendChild(merge);
+    defs.appendChild(filt);
+    overlay.insertBefore(defs, overlay.firstChild);
+  })();
   initTheme();
   applyCanvasFrame();
   syncCanvasInputs();
