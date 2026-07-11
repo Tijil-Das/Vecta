@@ -970,7 +970,22 @@ select.input{ font-family:var(--sans); }
           </div>
           <div class="row xy-grid" style="align-items:flex-start;">
             <div class="field"><span class="field-label">Rotation°</span><input class="input" id="prop-rot" type="number"></div>
-            <div class="field" id="prop-radius-wrap">
+            <div class="field" id="prop-sides-wrap" style="display:none;">
+              <span class="field-label">Vertices</span>
+              <select class="input" id="prop-sides">
+                <option value="3">3 (Triangle)</option>
+                <option value="4">4 (Diamond)</option>
+                <option value="5">5 (Pentagon)</option>
+                <option value="6">6 (Hexagon)</option>
+                <option value="7">7 (Heptagon)</option>
+                <option value="8">8 (Octagon)</option>
+                <option value="10">10 (Decagon)</option>
+                <option value="12">12 (Dodecagon)</option>
+              </select>
+            </div>
+          </div>
+          <div class="row xy-grid" id="prop-radius-row" style="align-items:flex-start;">
+            <div class="field" id="prop-radius-wrap" style="grid-column: 1 / -1;">
               <span class="field-label">Corner radius</span>
               <div style="display:flex;align-items:center;background:var(--bg-2);border:1px solid var(--line);border-radius:5px;overflow:hidden;">
                 <input class="input" id="prop-radius" type="number" min="0" style="border:none;border-radius:0;flex:1;background:transparent;">
@@ -1797,7 +1812,7 @@ function elForObj(o){
       break;
     case 'polygon':
       // rounded polygons need a <path> (SVG <polygon> can't have corner radii); sharp ones stay <polygon>
-      el = document.createElementNS(SVG_NS, (o.radius>0) ? 'path' : 'polygon');
+      el = document.createElementNS(SVG_NS, (o.radius>0 || (o.radii && o.radii.some(r=>r>0))) ? 'path' : 'polygon');
       break;
     case 'path':
       el = document.createElementNS(SVG_NS,'path');
@@ -1853,8 +1868,8 @@ function updateElAttrs(el, o, targetDefs){
       break;
     }
     case 'polygon': {
-      if(o.radius>0 && (o.points||[]).length>=3){
-        el.setAttribute('d', roundedPolygonPath(o.points, o.x, o.y, o.radius));
+      if(o.radius>0 || (o.radii && o.radii.some(r=>r>0))){
+        el.setAttribute('d', roundedPolygonPath(o.points, o.x, o.y, o.radius, o.radii));
       } else {
         const pts = (o.points||[]).map(p=>`${o.x+p[0]},${o.y+p[1]}`).join(' ');
         el.setAttribute('points', pts);
@@ -1921,16 +1936,17 @@ function updateElAttrs(el, o, targetDefs){
 // back along each edge from every vertex (clamped so pullbacks on the same
 // edge never overlap) and joining the pullback points with a quadratic
 // curve through the original vertex.
-function roundedPolygonPath(localPts, offX, offY, radius){
+function roundedPolygonPath(localPts, offX, offY, radius, radiiArray){
   const n = localPts.length;
   const pts = localPts.map(p=>[p[0]+offX, p[1]+offY]);
   const dist = (a,b)=>Math.hypot(b[0]-a[0], b[1]-a[1]);
 
   // clamp radius per-vertex so it never exceeds half of either adjacent edge
   const clamped = pts.map((p,i)=>{
+    const r = Array.isArray(radiiArray) && typeof radiiArray[i]==='number' ? radiiArray[i] : radius;
     const prev = pts[(i-1+n)%n], next = pts[(i+1)%n];
     const maxR = Math.min(dist(prev,p), dist(p,next)) / 2;
-    return Math.min(radius, maxR);
+    return Math.min(r||0, maxR);
   });
 
   const lerp = (a,b,t)=> [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];
@@ -1993,7 +2009,7 @@ function renderObject(o){
 }
 function tagFor(o){
   const type = o.type;
-  if(type==='polygon') return (o.radius>0) ? 'path' : 'polygon';
+  if(type==='polygon') return (o.radius>0 || (o.radii && o.radii.some(r=>r>0))) ? 'path' : 'polygon';
   if(type==='rect') return (o.radii && o.radii.some(r=>r>0)) ? 'path' : 'rect';
   return type;
 }
@@ -2118,7 +2134,7 @@ function drawSelBoxSVG(o){
   const cx = o.x+o.w/2, cy=o.y+o.h/2;
   const color = o.locked ? '#71767f' : '#4fb2e8';
 
-  const outline = selectionOutlineFor(o);
+  const outline = selectionOutlineFor(o, false);
   if(outline){
     // Geometry-traced outlines already use absolute SVG coordinates matching the
     // rendered shape exactly — no extra rotation needed; they are correct as-is.
@@ -2144,13 +2160,50 @@ function drawSelBoxSVG(o){
   if(!o.locked) addHandles(o.x,o.y,o.w,o.h,o.rot,o.id, o.type);
 }
 
-// Returns an SVG element tracing the object's real shape for selection
-// highlighting, or null to fall back to a plain bounding-box rectangle
-// (used for rect/ellipse/text/image, which genuinely are box-shaped).
-function selectionOutlineFor(o){
-  // Returning null forces all objects (including paths/lines) to render a standard
-  // rectangular bounding box that connects the 8 resize handles.
-  return null;
+function selectionOutlineFor(o, isHover=false){
+  if(!isHover && o.type !== 'path') return null;
+  if(o.type==='group' || o.type==='image' || o.type==='text') return null;
+
+  const el = document.createElementNS(SVG_NS, tagFor(o));
+  switch(o.type){
+    case 'rect':
+      if(o.radii && o.radii.some(r=>r>0)){
+        const {x,y,w,h} = o;
+        const [tl,tr,br,bl] = o.radii.map(r=>Math.max(0,r||0));
+        const W = Math.max(0,w), H = Math.max(0,h);
+        el.setAttribute('d', `M${x+tl},${y} H${x+W-tr} Q${x+W},${y} ${x+W},${y+tr} V${y+H-br} Q${x+W},${y+H} ${x+W-br},${y+H} H${x+bl} Q${x},${y+H} ${x},${y+H-bl} V${y+tl} Q${x},${y} ${x+tl},${y} Z`);
+      } else {
+        el.setAttribute('x', o.x); el.setAttribute('y', o.y);
+        el.setAttribute('width', Math.max(0,o.w)); el.setAttribute('height', Math.max(0,o.h));
+        el.setAttribute('rx', o.radius||0); el.setAttribute('ry', o.radius||0);
+      }
+      break;
+    case 'ellipse':
+      el.setAttribute('cx', o.x + o.w/2); el.setAttribute('cy', o.y + o.h/2);
+      el.setAttribute('rx', Math.max(0,o.w/2)); el.setAttribute('ry', Math.max(0,o.h/2));
+      break;
+    case 'circle':
+      el.setAttribute('cx', o.x + o.w/2); el.setAttribute('cy', o.y + o.h/2);
+      el.setAttribute('r', Math.max(0, o.w/2));
+      break;
+    case 'line':
+      el.setAttribute('x1', o.x+o.points[0][0]); el.setAttribute('y1', o.y+o.points[0][1]);
+      el.setAttribute('x2', o.x+o.points[1][0]); el.setAttribute('y2', o.y+o.points[1][1]);
+      break;
+    case 'polygon': {
+      if(o.radius>0 || (o.radii && o.radii.some(r=>r>0))){
+        el.setAttribute('d', roundedPolygonPath(o.points, o.x, o.y, o.radius, o.radii));
+      } else {
+        const pts = (o.points||[]).map(p=>`${o.x+p[0]},${o.y+p[1]}`).join(' ');
+        el.setAttribute('points', pts);
+      }
+      break;
+    }
+    case 'path':
+      el.setAttribute('d', pathDataFromPoints(o));
+      break;
+  }
+  return el;
 }
 
 const HANDLE_DEFS = [
@@ -2509,18 +2562,21 @@ function updatePropsPanel(){
   $('#prop-w').value = round2(o.w);
   $('#prop-h').value = round2(o.h);
   $('#prop-rot').value = round2(o.rot);
+  $('#prop-sides-wrap').style.display = o.type === 'polygon' ? 'block' : 'none';
+  if(o.type === 'polygon') $('#prop-sides').value = o.sides || 5;
+
   const isRadiusSupported = (o.type==='rect' || o.type==='polygon' || (o.type==='path' && o.closed && o.points));
   $('#prop-radius-wrap').style.display = isRadiusSupported ? 'block':'none';
   $('#prop-radius').value = o.radius||0;
-  // Per-corner only supported for rect
-  const perCornerActive = o.type==='rect' && Array.isArray(o.radii);
+  // Per-corner only supported for rect and polygon
+  const perCornerActive = (o.type==='rect' || o.type==='polygon') && Array.isArray(o.radii);
   $('#prop-radii-grid').style.display = perCornerActive ? 'block' : 'none';
   $('#prop-radius').disabled = perCornerActive;
   $('#prop-radius').style.opacity = perCornerActive ? '0.4' : '1';
   $('#prop-radius-per-corner-btn').style.background = perCornerActive ? 'var(--bg-3)' : 'transparent';
   $('#prop-radius-per-corner-btn').style.color = perCornerActive ? 'var(--text-0)' : 'var(--text-2)';
-  $('#crw-icon-linked').style.display = perCornerActive ? 'none' : 'block';
-  $('#crw-icon-unlinked').style.display = perCornerActive ? 'block' : 'none';
+  $('#crw-icon-linked').style.display = perCornerActive ? 'block' : 'none';
+  $('#crw-icon-unlinked').style.display = perCornerActive ? 'none' : 'block';
   if(perCornerActive){
     const [tl,tr,br,bl] = o.radii;
     $('#prop-radius-tl').value = tl||0;
@@ -2727,11 +2783,20 @@ bindNumberProp('#stroke-width','strokeWidth');
 bindNumberProp('#text-size','fontSize');
 
 // Per-corner radius toggle
+$('#prop-sides').addEventListener('change', (e)=>{
+  applyPropToSelection(o=>{
+    if(o.type==='polygon'){
+      o.sides = parseInt(e.target.value) || 5;
+      o.points = regularPolygonPoints(o.sides, o.w, o.h);
+    }
+  });
+});
+
 $('#prop-radius-per-corner-btn').addEventListener('click', ()=>{
   const objs = selectedObjs();
   if(!objs.length) return;
   const o = objs[0];
-  if(o.type !== 'rect') return;
+  if(o.type !== 'rect' && o.type !== 'polygon') return;
   if(Array.isArray(o.radii)){
     // Turn off — remove radii, keep radius
     applyPropToSelection(o=>{ delete o.radii; });
@@ -3202,7 +3267,11 @@ function startDrawDrag(pt){
   const o = makeObject(toolType === 'freehand' ? 'path' : toolType, {x:pt.x, y:pt.y, w:0, h:0, fill: nextDefaultShapeColor()});
   const strokeColor = isLightColor(state.canvas.bg) ? '#1c1e21' : '#f4f5f7';
   if(state.tool==='line'){ o.points=[[0,0],[0,0]]; o.fill='none'; o.stroke=strokeColor; o.strokeWidth=2; }
-  if(state.tool==='polygon'){ o.points = regularPolygonPoints(5, 0,0,50); o.w=100; o.h=100; }
+  if(state.tool==='polygon'){
+    o.sides = parseInt($('#prop-sides').value) || 5;
+    o.points = regularPolygonPoints(o.sides, 0, 0);
+    o.w=0; o.h=0;
+  }
   if(state.tool==='freehand'){ o.points=[[0,0]]; o.closed=false; o.fill='none'; o.stroke=strokeColor; o.strokeWidth=2.5; o.strokeLinecap='round'; }
   state.objects.push(o);
   state.selectedIds = [o.id];
@@ -3211,13 +3280,34 @@ function startDrawDrag(pt){
   drag = {type:'draw', obj:o, startX:pt.x, startY:pt.y, tool:state.tool};
 }
 
-function regularPolygonPoints(sides, cx, cy, r){
+function regularPolygonPoints(sides, w, h){
   const pts=[];
   for(let i=0;i<sides;i++){
     const a = -Math.PI/2 + i*2*Math.PI/sides;
-    pts.push([cx + r + r*Math.cos(a), cy + r + r*Math.sin(a)]);
+    pts.push([Math.cos(a), Math.sin(a)]);
   }
-  return pts;
+  const minX = Math.min(...pts.map(p=>p[0]));
+  const maxX = Math.max(...pts.map(p=>p[0]));
+  const minY = Math.min(...pts.map(p=>p[1]));
+  const maxY = Math.max(...pts.map(p=>p[1]));
+
+  return pts.map(p=>[
+    ((p[0]-minX)/(maxX-minX)) * w,
+    ((p[1]-minY)/(maxY-minY)) * h
+  ]);
+}
+
+function getPolygonAspectRatio(sides){
+  const pts=[];
+  for(let i=0;i<sides;i++){
+    const a = -Math.PI/2 + i*2*Math.PI/sides;
+    pts.push([Math.cos(a), Math.sin(a)]);
+  }
+  const minX = Math.min(...pts.map(p=>p[0]));
+  const maxX = Math.max(...pts.map(p=>p[0]));
+  const minY = Math.min(...pts.map(p=>p[1]));
+  const maxY = Math.max(...pts.map(p=>p[1]));
+  return (maxX - minX) / (maxY - minY);
 }
 
 function handlePenClick(pt, e){
@@ -3394,22 +3484,26 @@ function onCanvasMouseMove(e){
     } else if(o.type==='path'){ // freehand
       o.points.push([pt.x-o.x, pt.y-o.y]);
       recalcPathBounds(o);
-    } else if(o.type==='polygon'){
-      const w = pt.x-x0, h = pt.y-y0;
-      const size = Math.max(Math.abs(w),Math.abs(h));
-      o.points = regularPolygonPoints(5,0,0,size/2);
-      o.x = w<0? x0-size : x0; o.y = h<0 ? y0-size: y0;
-      o.w=size; o.h=size;
     } else {
       let rw = pt.x-x0, rh = pt.y-y0;
-      // Circle tool: always constrain to square; shift on ellipse/rect also constrains
-      if(drag.tool==='circle' || (o.type==='ellipse' && e.shiftKey) || (o.type==='rect' && e.shiftKey)){
-        const s = Math.min(Math.abs(rw), Math.abs(rh));
-        rw = rw < 0 ? -s : s;
-        rh = rh < 0 ? -s : s;
+      // Circle tool: always constrain to square; shift on ellipse/rect/polygon also constrains
+      if(drag.tool==='circle' || (o.type==='ellipse' && e.shiftKey) || (o.type==='rect' && e.shiftKey) || (o.type==='polygon' && e.shiftKey)){
+        if(o.type==='polygon'){
+          const aspect = getPolygonAspectRatio(o.sides || 5);
+          if (Math.abs(rw) / aspect > Math.abs(rh)) {
+            rw = (rw < 0 ? -1 : 1) * Math.abs(rh) * aspect;
+          } else {
+            rh = (rh < 0 ? -1 : 1) * Math.abs(rw) / aspect;
+          }
+        } else {
+          const s = Math.min(Math.abs(rw), Math.abs(rh));
+          rw = rw < 0 ? -s : s;
+          rh = rh < 0 ? -s : s;
+        }
       }
       o.x = Math.min(x0, x0+rw); o.y = Math.min(y0, y0+rh);
       o.w = Math.abs(rw); o.h = Math.abs(rh);
+      if(o.type==='polygon') o.points = regularPolygonPoints(o.sides || 5, o.w, o.h);
     }
     renderObject(o);
     // While actively drawing a freehand stroke, show nothing but the stroke
@@ -3485,7 +3579,10 @@ function onCanvasMouseUp(e){
     if(state.tool!=='freehand' && o.type!=='line' && o.w<2 && o.h<2){
       // treat as click - give default size
       o.w = o.type==='polygon'?100:80; o.h = o.type==='polygon'?100:80;
-      if(o.type==='polygon') o.points = regularPolygonPoints(5,0,0,40);
+      if(o.type==='polygon'){
+        o.sides = parseInt($('#prop-sides').value) || 5;
+        o.points = regularPolygonPoints(o.sides, 100, 100);
+      }
       renderObject(o);
     } else if(o.type==='line' && o.w<1 && o.h<1){
       // zero-size line click: give a small default diagonal
@@ -3554,7 +3651,7 @@ function updateHoverOutline(e){
 
   // Same logic as drawSelBoxSVG: geometry-traced shapes (line/path/polygon) already
   // encode absolute coordinates — no rotation group needed. Bbox shapes need one.
-  let shape = selectionOutlineFor(o);
+  let shape = selectionOutlineFor(o, true);
   if(!shape){
     const g = document.createElementNS(SVG_NS,'g');
     g.setAttribute('id','hover-outline');
