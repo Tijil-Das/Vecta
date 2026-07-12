@@ -405,11 +405,7 @@ input{font-family:inherit; color:inherit;}
   font-size:11px; color:var(--text-2); font-family:var(--mono);
   white-space:nowrap;
 }
-svg text {
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+
 
 /* selection overlay */
 #overlay{ position:absolute; top:0; left:0; pointer-events:none; overflow:visible; }
@@ -643,8 +639,8 @@ select.input{ font-family:var(--sans); }
 
 /* text editing overlay */
 .text-edit-box{
-  position:absolute; background:transparent; border:1.5px dashed var(--accent);
-  outline:none; overflow:hidden; white-space:pre-wrap; word-break:break-word;
+  position:absolute; background:transparent; border:none;
+  outline:1.5px dashed var(--accent); overflow:hidden; white-space:pre-wrap; word-break:break-word;
   min-width:20px; min-height:1em;
 }
 
@@ -1626,7 +1622,7 @@ function makeObject(type, extra){
     radius: 0,
     points: null, // for polygon/pen/freehand: array of [x,y] relative to x,y
     closed: true,
-    textContent: 'Text', fontSize: 32, fontWeight: '600', fontFamily: 'Inter, sans-serif', textAlign:'start',
+    textContent: 'Text', fontSize: 32, fontWeight: '600', fontStyle: 'normal', textDecoration: 'none', fontFamily: 'Inter, sans-serif', textAlign:'start',
     gradient: null, // {type:'linear'|'radial', angle:number, stops:[{color,pos},...]} — N stops supported
     strokeGradient: null, // same shape as gradient, applied to stroke instead of fill
     effect: null, // {type:'shadow', dx,dy,blur,color,opacity} | {type:'blur', amount} | null
@@ -1904,9 +1900,12 @@ function updateElAttrs(el, o, targetDefs){
     }
     case 'text':
       el.setAttribute('x', o.textAlign==='middle' ? o.x+o.w/2 : o.textAlign==='end' ? o.x+o.w : o.x);
-      el.setAttribute('y', o.y + o.fontSize);
+      // Use standard alphabetic baseline (approx 80% down the em-box) for robust cross-browser rendering
+      el.setAttribute('y', o.y + o.fontSize * 0.8);
       el.setAttribute('font-size', o.fontSize);
       el.setAttribute('font-weight', o.fontWeight);
+      if (o.fontStyle && o.fontStyle !== 'normal') el.setAttribute('font-style', o.fontStyle);
+      if (o.textDecoration && o.textDecoration !== 'none') el.setAttribute('text-decoration', o.textDecoration);
       el.setAttribute('font-family', o.fontFamily);
       el.setAttribute('text-anchor', o.textAlign);
       el.textContent = o.textContent;
@@ -1927,17 +1926,25 @@ function updateElAttrs(el, o, targetDefs){
     } else {
       el.setAttribute('fill', o.fill==='none' ? 'none' : o.fill);
     }
-    el.setAttribute('fill-opacity', o.fillOpacity);
-    if(o.strokeGradient){
-      const sGradId = ensureGradientDef(o.strokeGradient, 'grad-stroke-'+o.id, targetDefs);
-      el.setAttribute('stroke', `url(#${sGradId})`);
+    // Text elements don't use fill-opacity or stroke — they differ from shape rendering
+    // and cause the text to look washed-out/grey compared to the editor div.
+    if(o.type !== 'text'){
+      el.setAttribute('fill-opacity', o.fillOpacity);
+      if(o.strokeGradient){
+        const sGradId = ensureGradientDef(o.strokeGradient, 'grad-stroke-'+o.id, targetDefs);
+        el.setAttribute('stroke', `url(#${sGradId})`);
+      } else {
+        el.setAttribute('stroke', o.stroke==='none' ? 'none' : o.stroke);
+      }
+      el.setAttribute('stroke-width', o.strokeWidth);
+      if(o.strokeDasharray && o.strokeDasharray!=='none') el.setAttribute('stroke-dasharray', o.strokeDasharray);
+      else el.removeAttribute('stroke-dasharray');
+      el.setAttribute('stroke-linecap', o.strokeLinecap||'butt');
     } else {
-      el.setAttribute('stroke', o.stroke==='none' ? 'none' : o.stroke);
+      // Text: ensure no inherited stroke bleeds in
+      el.setAttribute('stroke', 'none');
+      el.removeAttribute('fill-opacity');
     }
-    el.setAttribute('stroke-width', o.strokeWidth);
-    if(o.strokeDasharray && o.strokeDasharray!=='none') el.setAttribute('stroke-dasharray', o.strokeDasharray);
-    else el.removeAttribute('stroke-dasharray');
-    el.setAttribute('stroke-linecap', o.strokeLinecap||'butt');
   }
   if(o.effect && (o.effect.type==='shadow' || o.effect.type==='blur')){
     const filterId = ensureFilterDef(o, targetDefs);
@@ -4498,20 +4505,95 @@ function startInlineTextEdit(o){
   div.style.whiteSpace = 'pre';
   div.style.fontSize = o.fontSize+'px';
   div.style.fontWeight = o.fontWeight;
+  div.style.fontStyle = o.fontStyle || 'normal';
+  div.style.textDecoration = o.textDecoration || 'none';
   div.style.fontFamily = o.fontFamily;
   div.style.color = o.fill;
   div.style.textAlign = o.textAlign==='middle'?'center':o.textAlign==='end'?'right':'left';
-  div.style.lineHeight = 1.2;
+  // lineHeight:1 so the div height = fontSize
+  div.style.lineHeight = 1;
+  div.style.padding = '0';
+  div.style.margin = '0';
   stage.appendChild(div);
   div.focus();
   document.execCommand && placeCaretEnd(div);
 
+  const toolbar = document.createElement('div');
+  toolbar.style.cssText = `position:absolute; display:none; gap:4px; background:var(--bg-1); border:1px solid var(--line); border-radius:6px; padding:4px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:10000; align-items:center;`;
+  toolbar.innerHTML = `
+    <button class="iconbtn ${o.fontWeight>='700'?'active':''}" data-action="bold" title="Bold" style="width:26px;height:26px;padding:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg></button>
+    <button class="iconbtn ${o.fontStyle==='italic'?'active':''}" data-action="italic" title="Italic" style="width:26px;height:26px;padding:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"></line><line x1="14" y1="20" x2="5" y2="20"></line><line x1="15" y1="4" x2="9" y2="20"></line></svg></button>
+    <button class="iconbtn ${o.textDecoration==='underline'?'active':''}" data-action="underline" title="Underline" style="width:26px;height:26px;padding:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"></path><line x1="4" y1="21" x2="20" y2="21"></line></svg></button>
+    <div style="width:1px;height:16px;background:var(--line);margin:0 4px;"></div>
+    <input type="color" value="${o.fill==='none'?'#000000':o.fill}" style="width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:3px;cursor:pointer;">
+  `;
+  document.body.appendChild(toolbar);
+
+  // Prevent toolbar clicks from causing the div to lose focus
+  toolbar.addEventListener('mousedown', e => e.preventDefault());
+
+  const btnBold = toolbar.querySelector('[data-action="bold"]');
+  const btnItalic = toolbar.querySelector('[data-action="italic"]');
+  const btnUnderline = toolbar.querySelector('[data-action="underline"]');
+  const colorPicker = toolbar.querySelector('input[type="color"]');
+
+  btnBold.onclick = () => {
+    o.fontWeight = o.fontWeight >= '700' ? '400' : '700';
+    div.style.fontWeight = o.fontWeight;
+    btnBold.classList.toggle('active', o.fontWeight >= '700');
+    updatePropsPanel();
+    updateToolbarPos();
+  };
+  btnItalic.onclick = () => {
+    o.fontStyle = o.fontStyle === 'italic' ? 'normal' : 'italic';
+    div.style.fontStyle = o.fontStyle;
+    btnItalic.classList.toggle('active', o.fontStyle === 'italic');
+    updatePropsPanel();
+    updateToolbarPos();
+  };
+  btnUnderline.onclick = () => {
+    o.textDecoration = o.textDecoration === 'underline' ? 'none' : 'underline';
+    div.style.textDecoration = o.textDecoration;
+    btnUnderline.classList.toggle('active', o.textDecoration === 'underline');
+    updatePropsPanel();
+    updateToolbarPos();
+  };
+  colorPicker.oninput = (e) => {
+    o.fill = e.target.value;
+    div.style.color = o.fill;
+    updatePropsPanel();
+  };
+
+  function updateToolbarPos(){
+    const rect = div.getBoundingClientRect();
+    toolbar.style.left = rect.left + 'px';
+    toolbar.style.top = (rect.top - toolbar.offsetHeight - 8) + 'px';
+  }
+  
+  function handleSelection(){
+    if(document.activeElement !== div){
+      toolbar.style.display = 'none';
+      return;
+    }
+    const sel = window.getSelection();
+    if(sel && sel.toString().trim().length > 0){
+      toolbar.style.display = 'flex';
+      updateToolbarPos();
+    } else {
+      toolbar.style.display = 'none';
+    }
+  }
+  document.addEventListener('selectionchange', handleSelection);
+
   function finish(){
+    document.removeEventListener('selectionchange', handleSelection);
     o.textContent = div.textContent || 'Text';
     const rect = div.getBoundingClientRect();
     o.w = Math.max(20, rect.width/state.zoom);
-    o.h = Math.max(o.fontSize*1.2, rect.height/state.zoom);
+    // Height = fontSize (matches standard baseline calculation)
+    o.h = o.fontSize;
     div.remove();
+    toolbar.remove();
     if(svgEl) svgEl.style.visibility = o.visible?'visible':'hidden';
     renderObject(o);
     renderSelection();
@@ -4521,11 +4603,12 @@ function startInlineTextEdit(o){
   }
   div.addEventListener('blur', finish);
   div.addEventListener('input', ()=>{
-    // live-resize the selection box while typing so it never lags behind the text
+    // live-resize the selection box while typing
     const rect = div.getBoundingClientRect();
     o.w = Math.max(20, rect.width/state.zoom);
-    o.h = Math.max(o.fontSize*1.2, rect.height/state.zoom);
+    o.h = o.fontSize;
     renderSelection();
+    updateToolbarPos();
   });
   div.addEventListener('keydown', e=>{
     if(e.key==='Escape'){ e.preventDefault(); div.blur(); }
