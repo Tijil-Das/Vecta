@@ -405,6 +405,11 @@ input{font-family:inherit; color:inherit;}
   font-size:11px; color:var(--text-2); font-family:var(--mono);
   white-space:nowrap;
 }
+svg text {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 /* selection overlay */
 #overlay{ position:absolute; top:0; left:0; pointer-events:none; overflow:visible; }
@@ -1805,7 +1810,7 @@ function applyCanvasFrame(){
 }
 
 function applyTransform(){
-  stage.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+  stage.style.transform = `translate(${Math.round(state.panX)}px, ${Math.round(state.panY)}px) scale(${state.zoom})`;
   $('#hud-zoom').textContent = Math.round(state.zoom*100)+'%';
   drawRulers();
   renderGuides();
@@ -4289,10 +4294,10 @@ function startHandleDrag(target, pt, e){
     // scale the group's children proportionally around the group's own box
     const kids = groupChildren(o).filter(k=>!k.locked);
     drag = {type:'resize', handle, group:true, groupObj:o, box:{x:o.x,y:o.y,w:o.w,h:o.h},
-      origins: kids.map(k=>({id:k.id,x:k.x,y:k.y,w:k.w,h:k.h}))};
+      origins: kids.map(k=>({id:k.id,x:k.x,y:k.y,w:k.w,h:k.h,fontSize:k.fontSize}))};
     return;
   }
-  drag = {type:'resize', handle, obj:o, orig:{x:o.x,y:o.y,w:o.w,h:o.h, points: o.points ? o.points.map(p=>[p[0],p[1]]) : null}};
+  drag = {type:'resize', handle, obj:o, orig:{x:o.x,y:o.y,w:o.w,h:o.h, fontSize: o.fontSize, points: o.points ? o.points.map(p=>[p[0],p[1]]) : null}};
 }
 
 function doResize(pt){
@@ -4319,6 +4324,10 @@ function doResize(pt){
       o.y = ny + (orig.y - y)*sy;
       o.w = orig.w * sx;
       o.h = orig.h * sy;
+      if(o.type === 'text' && orig.fontSize){
+        // When a group scales, text scales proportionally based on height
+        o.fontSize = orig.fontSize * sy;
+      }
       renderObject(o);
     });
     if(groupObj){ groupObj.x=nx; groupObj.y=ny; groupObj.w=nw; groupObj.h=nh; }
@@ -4352,13 +4361,23 @@ function doResize(pt){
   if(handle.includes('n')){ nh = Math.max(minSize, y+h-localPt.y); ny = y+h-nh; }
 
   // Shift = preserve aspect ratio, anchored at the opposite corner (corner handles only)
-  if(drag.shiftLock && handle.length===2 && w>0 && h>0){
-    const ratio = w/h;
-    const scaleW = nw/w, scaleH = nh/h;
-    const scale = Math.max(scaleW, scaleH);
-    nw = w*scale; nh = h*scale;
-    if(handle.includes('w')) nx = x+w-nw;
-    if(handle.includes('n')) ny = y+h-nh;
+  // Text elements must always preserve aspect ratio because they scale uniformly via fontSize
+  const forceUniform = o.type === 'text';
+  if((drag.shiftLock && handle.length===2) || forceUniform){
+    if(w>0 && h>0){
+      const scaleW = nw/w, scaleH = nh/h;
+      let scale = Math.max(scaleW, scaleH);
+      if(forceUniform && handle.length===1){
+         if(handle==='e' || handle==='w') scale = scaleW;
+         else scale = scaleH;
+      }
+      nw = w*scale; nh = h*scale;
+      if(handle.includes('w')) nx = x+w-nw;
+      if(handle.includes('n')) ny = y+h-nh;
+      
+      // If pulling an edge on text, adjusting the other dimension anchors it to the top/left.
+      // E.g. pulling 'e' will scale w and h, growing down and right. This keeps it predictable.
+    }
   }
 
   // scale points-based shapes proportionally from the ORIGINAL points captured
@@ -4368,6 +4387,11 @@ function doResize(pt){
     const sx = orig.w>0 ? nw/orig.w : 1;
     const sy = orig.h>0 ? nh/orig.h : 1;
     o.points = orig.points.map(p=>[p[0]*sx, p[1]*sy]);
+  }
+  
+  if(o.type === 'text' && orig.fontSize){
+    const sy = orig.h>0 ? nh/orig.h : 1;
+    o.fontSize = orig.fontSize * sy;
   }
   o.x=nx; o.y=ny; o.w=nw; o.h=nh;
   renderObject(o);
