@@ -2197,6 +2197,35 @@ function drawSelBoxSVG(o){
   const color = o.locked ? '#71767f' : '#4fb2e8';
 
   const outline = selectionOutlineFor(o, false);
+  
+  // Add solid glow behind single selected object
+  let glowShape = selectionOutlineFor(o, true);
+  if(!glowShape){
+    const gg = document.createElementNS(SVG_NS,'g');
+    if(o.rot) gg.setAttribute('transform', `rotate(${o.rot} ${cx} ${cy})`);
+    const gr = document.createElementNS(SVG_NS,'rect');
+    gr.setAttribute('x',o.x); gr.setAttribute('y',o.y);
+    gr.setAttribute('width',o.w); gr.setAttribute('height',o.h);
+    gg.appendChild(gr);
+    glowShape = gg;
+  } else {
+    if(o.rot){
+      if(o.type==='path' && o.rawPath && !o.points){
+        glowShape.setAttribute('transform',`translate(${o.x} ${o.y}) rotate(${o.rot} ${o.w/2} ${o.h/2})`);
+      } else {
+        glowShape.setAttribute('transform',`rotate(${o.rot} ${cx} ${cy})`);
+      }
+    } else if(o.type==='path' && o.rawPath && !o.points){
+      glowShape.setAttribute('transform',`translate(${o.x} ${o.y})`);
+    }
+  }
+  glowShape.setAttribute('fill', o.locked ? 'rgba(113,118,127,0.18)' : 'rgba(79,178,232,0.18)');
+  glowShape.setAttribute('stroke', color);
+  glowShape.setAttribute('stroke-width', 2/state.zoom);
+  glowShape.style && (glowShape.style.pointerEvents = 'none');
+  glowShape.setAttribute('filter','url(#sel-glow)');
+  overlay.appendChild(glowShape);
+
   if(outline){
     // Geometry-traced outlines already use absolute SVG coordinates matching the
     // rendered shape exactly. We just need to apply its rotation!
@@ -3758,9 +3787,10 @@ function onCanvasMouseMove(e){
           }
         }
       }
-      shape.setAttribute('fill', 'rgba(79,178,232,0.25)');
+      shape.setAttribute('fill', 'rgba(79,178,232,0.18)');
       shape.setAttribute('stroke', '#4fb2e8');
-      shape.setAttribute('stroke-width', 1.5 / state.zoom);
+      shape.setAttribute('stroke-width', 2 / state.zoom);
+      shape.setAttribute('filter', 'url(#sel-glow)');
       shape.style.pointerEvents = 'none';
       glowG.appendChild(shape);
     });
@@ -3792,9 +3822,10 @@ function onCanvasMouseMove(e){
         if(o.rot) shape.setAttribute('transform', (o.type==='path' && o.rawPath && !o.points) ? `translate(${o.x} ${o.y}) rotate(${o.rot} ${o.w/2} ${o.h/2})` : `rotate(${o.rot} ${cx} ${cy})`);
         else if(o.type==='path' && o.rawPath && !o.points) shape.setAttribute('transform', `translate(${o.x} ${o.y})`);
       }
-      shape.setAttribute('fill', 'rgba(79,178,232,0.25)');
+      shape.setAttribute('fill', 'rgba(79,178,232,0.18)');
       shape.setAttribute('stroke', '#4fb2e8');
-      shape.setAttribute('stroke-width', 1.5 / state.zoom);
+      shape.setAttribute('stroke-width', 2 / state.zoom);
+      shape.setAttribute('filter', 'url(#sel-glow)');
       shape.style.pointerEvents = 'none';
       glowG.appendChild(shape);
     });
@@ -3937,6 +3968,12 @@ function onCanvasMouseUp(e){
       renderSelection(); renderLayersList(); updatePropsPanel();
     }
     drag = null;
+    
+    // Automatically revert to Rect mode after a lasso selection is completed
+    if(state.selectMode === 'lasso'){
+      state.selectMode = 'rect';
+      setTool('select');
+    }
     return;
   }
   if(drag.type==='rotate-multi'){
