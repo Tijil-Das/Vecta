@@ -2134,6 +2134,12 @@ function renderSelection(){
       minX = drag.box.x; minY = drag.box.y;
       maxX = minX + drag.box.w; maxY = minY + drag.box.h;
       rot = drag.totalDelta || 0;
+    } else if(state.multiSelRot) {
+      // After a rotate-multi ends, use the preserved rotated bounding box
+      // instead of recomputing the (incorrect) AABB from rotated object positions.
+      minX = state.multiSelRot.x; minY = state.multiSelRot.y;
+      maxX = minX + state.multiSelRot.w; maxY = minY + state.multiSelRot.h;
+      rot = state.multiSelRot.rot;
     } else {
       objs.forEach(o=>{
         minX=Math.min(minX,o.x); minY=Math.min(minY,o.y);
@@ -2463,6 +2469,7 @@ function lockClosedSvg(){ return '<svg viewBox="0 0 16 16" fill="none"><rect x="
 // ================= SELECTION =================
 
 function selectObject(id, additive){
+  state.multiSelRot = null; // clear any stored rotation box whenever selection changes
   if(!id){ state.selectedIds = []; }
   else if(additive){
     if(state.selectedIds.includes(id)) state.selectedIds = state.selectedIds.filter(x=>x!==id);
@@ -4046,7 +4053,12 @@ function onCanvasMouseUp(e){
     return;
   }
   if(drag.type==='rotate-multi'){
-    // final cleanup on mouseUp — nothing extra needed, rotate-multi is fully handled in mousemove
+    // Save the final rotated bounding box so renderSelection stays correct after drag=null
+    state.multiSelRot = {
+      x: drag.box.x, y: drag.box.y,
+      w: drag.box.w, h: drag.box.h,
+      rot: drag.totalDelta || 0
+    };
     drag = null;
     clearRotationReadout();
     renderSelection();
@@ -4079,6 +4091,8 @@ function onCanvasMouseUp(e){
   }
   if(drag.type==='move' || drag.type==='resize' || drag.type==='rotate' || drag.type==='rotate-multi'){
     if(drag.type==='move'){
+      // Objects have moved — any stored rotated selection box is now stale
+      state.multiSelRot = null;
       const pt = screenToSvg(e.clientX, e.clientY);
       const isClick = Math.abs(pt.x - drag.startX) < 2 && Math.abs(pt.y - drag.startY) < 2;
       if (isClick && drag.hitId) {
@@ -4095,6 +4109,7 @@ function onCanvasMouseUp(e){
         }
       }
     }
+    if(drag.type==='resize') state.multiSelRot = null;
     if(drag.type==='rotate' || drag.type==='rotate-multi') clearRotationReadout();
     // if we edited a child directly (e.g. Alt+click into a group), keep the parent group's box in sync
     const idsToCheck = drag.obj ? [drag.obj.id] : (drag.origins||[]).map(o=>o.id);
@@ -4244,6 +4259,8 @@ function startHandleDrag(target, pt, e){
     let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     selObjs.forEach(o=>{ minX=Math.min(minX,o.x);minY=Math.min(minY,o.y);maxX=Math.max(maxX,o.x+o.w);maxY=Math.max(maxY,o.y+o.h); });
     const mcx = (minX+maxX)/2, mcy = (minY+maxY)/2;
+    // Clear any preserved rotation box — we're starting fresh from current positions
+    state.multiSelRot = null;
     drag = {
       type: 'rotate-multi',
       cx: mcx, cy: mcy,
