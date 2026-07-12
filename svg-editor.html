@@ -2546,6 +2546,75 @@ function duplicateSelected(){
   toast('Duplicated');
 }
 
+// ================= Z-INDEX REORDERING =================
+function reorderZ(dir){
+  const selected = selectedObjs();
+  if(selected.length === 0) return;
+
+  // Z-order only makes sense for top-level objects.
+  // Find which of the selected objects are themselves top-level.
+  const topLevel = topLevelObjects();
+  const topIds = topLevel.map(o => o.id);
+  const selIds = new Set(selected.map(o => o.id));
+  // Only move objects that appear in the top-level list
+  const movers = new Set(topIds.filter(id => selIds.has(id)));
+  if(movers.size === 0) return;
+
+  // Reorder the topIds array
+  let newTopIds = [...topIds];
+
+  if(dir === 'front'){
+    const rest = newTopIds.filter(id => !movers.has(id));
+    const moving = newTopIds.filter(id => movers.has(id));
+    newTopIds = [...rest, ...moving];
+  }
+  else if(dir === 'back'){
+    const rest = newTopIds.filter(id => !movers.has(id));
+    const moving = newTopIds.filter(id => movers.has(id));
+    newTopIds = [...moving, ...rest];
+  }
+  else if(dir === 'forward'){
+    // Bubble each selected item forward by one slot past the nearest non-selected above it
+    for(let i = newTopIds.length - 2; i >= 0; i--){
+      if(movers.has(newTopIds[i]) && !movers.has(newTopIds[i+1])){
+        [newTopIds[i], newTopIds[i+1]] = [newTopIds[i+1], newTopIds[i]];
+      }
+    }
+  }
+  else if(dir === 'backward'){
+    // Bubble each selected item backward by one slot past the nearest non-selected below it
+    for(let i = 1; i < newTopIds.length; i++){
+      if(movers.has(newTopIds[i]) && !movers.has(newTopIds[i-1])){
+        [newTopIds[i], newTopIds[i-1]] = [newTopIds[i-1], newTopIds[i]];
+      }
+    }
+  }
+
+  // Rebuild state.objects:
+  // Top-level objects should appear in newTopIds order.
+  // Group children must immediately follow their parent group (they keep their existing internal order).
+  const objMap = {};
+  state.objects.forEach(o => objMap[o.id] = o);
+
+  const newObjects = [];
+  newTopIds.forEach(id => {
+    const o = objMap[id];
+    if(!o) return;
+    newObjects.push(o);
+    // If it's a group, also push all its children in their current order
+    if(o.type === 'group'){
+      const kids = (o.childIds || []).map(cid => objMap[cid]).filter(Boolean);
+      kids.forEach(k => newObjects.push(k));
+    }
+  });
+  // Safety: include any objects not yet added (shouldn't happen, but guard against edge cases)
+  state.objects.forEach(o => { if(!newObjects.includes(o)) newObjects.push(o); });
+
+  state.objects = newObjects;
+  renderAll();
+  pushHistory();
+}
+
 // ================= CUT / COPY / PASTE =================
 // Internal clipboard: stored as JSON-serialised deep copies of the selected objects.
 // Paste always generates fresh IDs so there are no ID collisions with existing objects.
