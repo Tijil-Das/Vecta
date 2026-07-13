@@ -117,6 +117,17 @@ input{font-family:inherit; color:inherit;}
   font-family:inherit;
 }
 .theme-option:hover{ background:var(--bg-3); }
+.undo-item {
+  display:block; width:100%; padding:6px 12px; border:none; background:none;
+  cursor:pointer; color:var(--text-0); font-size:12.5px; text-align:left;
+  font-family:inherit;
+}
+.undo-item.hover-active { background:var(--bg-3); }
+.undo-header {
+  padding: 4px 12px 6px; font-weight:700; text-transform:uppercase; 
+  letter-spacing:0.5px; font-size:10.5px; color:var(--text-2); border-bottom:1px solid var(--line);
+  margin-bottom: 4px;
+}
 .theme-swatch{
   width:15px; height:15px; border-radius:50%; flex:0 0 15px;
   /* Solid 2px contrasting border so swatches never camouflage on any background */
@@ -683,9 +694,17 @@ select.input{ font-family:var(--sans); }
       </div>
     </div>
     <div class="divider"></div>
-    <button class="iconbtn" id="btn-undo" title="Undo (Ctrl+Z)">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M7 8H14C17 8 19 10 19 13C19 16 17 18 14 18H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
+    <div style="position:relative; display:flex;">
+      <button class="iconbtn" id="btn-undo" title="Undo (Ctrl+Z)" style="border-top-right-radius:0; border-bottom-right-radius:0; padding-right:4px;">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M7 8H14C17 8 19 10 19 13C19 16 17 18 14 18H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="iconbtn" id="btn-undo-dropdown" title="History" style="border-top-left-radius:0; border-bottom-left-radius:0; padding-left:2px; padding-right:2px; width:16px;">
+        <svg viewBox="0 0 24 24" width="10" height="10" fill="none" style="margin-top:2px"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div id="undo-popover" class="theme-menu" style="width:240px; max-height:350px; overflow-y:auto; padding:4px 0; right:auto; left:0;">
+        <div id="undo-list-container"></div>
+      </div>
+    </div>
     <button class="iconbtn" id="btn-redo" title="Redo (Ctrl+Y)">
       <svg viewBox="0 0 24 24" fill="none"><path d="M17 8H10C7 8 5 10 5 13C5 16 7 18 10 18H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 4L18 8L14 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -1482,6 +1501,10 @@ async function _applyVectaPayload(b64){
   state.objects = data.objects || [];
   state.guides  = data.guides  || [];
   history       = data.history || [];
+  
+  // Backwards compatibility: Migrate old history format (array of strings) to array of objects
+  history = history.map(h => typeof h === 'string' ? { name: 'Legacy action', state: h } : h);
+  
   historyIndex  = typeof data.historyIndex === 'number' ? data.historyIndex : history.length - 1;
 
   // Recompute nextId so new objects don't collide with existing ones
@@ -1517,13 +1540,19 @@ let history = [];
 let historyIndex = -1;
 let suppressHistory = false;
 
-function pushHistory(){
+function pushHistory(actionName = 'Edit document'){
   if(suppressHistory) return;
+  const newState = JSON.stringify({objects: state.objects, canvas: state.canvas});
+  
+  // Deduplicate empty actions
+  if(historyIndex >= 0 && history[historyIndex] && history[historyIndex].state === newState) return;
+
   history = history.slice(0, historyIndex+1);
-  history.push(JSON.stringify({objects: state.objects, canvas: state.canvas}));
+  history.push({ name: actionName, state: newState });
   if(history.length > 100) history.shift();
   historyIndex = history.length - 1;
   updateUndoRedoButtons();
+  if(typeof renderHistoryDropdown === 'function') renderHistoryDropdown();
 }
 function undo(){
   if(historyIndex <= 0) return;
@@ -1536,7 +1565,9 @@ function redo(){
   restoreFromHistory();
 }
 function restoreFromHistory(){
-  const snap = JSON.parse(history[historyIndex]);
+  const snapObj = history[historyIndex];
+  if(!snapObj) return;
+  const snap = JSON.parse(snapObj.state || snapObj); // Fallback if somehow corrupted
   suppressHistory = true;
   state.objects = snap.objects;
   state.canvas = snap.canvas;
@@ -1545,6 +1576,7 @@ function restoreFromHistory(){
   syncCanvasInputs();
   suppressHistory = false;
   updateUndoRedoButtons();
+  if(typeof renderHistoryDropdown === 'function') renderHistoryDropdown();
 }
 function updateUndoRedoButtons(){
   $('#btn-undo').disabled = historyIndex <= 0;
@@ -2449,7 +2481,7 @@ function buildLayerRow(o, depth){
     if(o.type==='group') groupChildren(o).forEach(c=>{ c.visible=o.visible; renderObject(c); });
     renderObject(o);
     renderLayersList();
-    pushHistory();
+    pushHistory('Group objects');
   });
   item.querySelector('.layer-lock').addEventListener('click', (e)=>{
     e.stopPropagation();
@@ -2457,7 +2489,7 @@ function buildLayerRow(o, depth){
     if(o.type==='group') groupChildren(o).forEach(c=>{ c.locked=o.locked; renderObject(c); });
     renderObject(o);
     renderLayersList();
-    pushHistory();
+    pushHistory('Ungroup objects');
   });
   if(depth===0){
     item.addEventListener('dragstart', (e)=>{
@@ -2475,7 +2507,7 @@ function buildLayerRow(o, depth){
       state.objects.splice(toIdx,0,moved);
       reorderDom();
       renderLayersList();
-      pushHistory();
+      pushHistory('Delete objects');
     });
   }
 
@@ -2542,7 +2574,7 @@ function deleteSelected(){
   state.objects.forEach(o=>{ if(o.type==='group') o.childIds = (o.childIds||[]).filter(id=>!allIds.includes(id)); });
   state.selectedIds = [];
   renderAll();
-  pushHistory();
+  pushHistory('Align objects');
 }
 
 function duplicateSelected(){
@@ -2579,7 +2611,7 @@ function duplicateSelected(){
   });
   state.selectedIds = newIds;
   renderAll();
-  pushHistory();
+  pushHistory('Duplicate objects');
   toast('Duplicated');
 }
 
@@ -2649,7 +2681,7 @@ function reorderZ(dir){
 
   state.objects = newObjects;
   renderAll();
-  pushHistory();
+  pushHistory('Paste objects');
 }
 
 // ================= CUT / COPY / PASTE =================
@@ -2703,7 +2735,7 @@ function pasteClipboard(){
   _pasteOffset++;
   state.selectedIds = newIds;
   renderAll();
-  pushHistory();
+  pushHistory('Bring to front');
   toast(`Pasted ${newIds.length} object${newIds.length>1?'s':''}`);
 }
 
@@ -2715,7 +2747,7 @@ function groupSelected(){
   state.objects.push(g);
   state.selectedIds = [g.id];
   renderAll();
-  pushHistory();
+  pushHistory('Bring forward');
   toast('Grouped');
 }
 
@@ -2729,7 +2761,7 @@ function ungroupSelected(){
   });
   state.selectedIds = freedIds;
   renderAll();
-  pushHistory();
+  pushHistory('Send backward');
   toast('Ungrouped');
 }
 
@@ -2915,7 +2947,7 @@ function renderStopList(containerId, gradient, kind){
       applyPropToSelection(o=>{}); // trigger re-render of shape using current object refs
       renderSelection();
     });
-    colorInput.addEventListener('change', ()=>pushHistory());
+    colorInput.addEventListener('change', ()=>pushHistory('Change gradient color'));
     rangeInput.addEventListener('input', e=>{
       const v = parseFloat(e.target.value);
       gradient.stops[s._idx].pos = v;
@@ -2923,14 +2955,14 @@ function renderStopList(containerId, gradient, kind){
       applyPropToSelection(o=>{});
       renderSelection();
     });
-    rangeInput.addEventListener('change', ()=>pushHistory());
+    rangeInput.addEventListener('change', ()=>pushHistory('Change gradient stop'));
     if(removeBtn){
       removeBtn.addEventListener('click', ()=>{
         gradient.stops.splice(s._idx,1);
         applyPropToSelection(o=>{});
         renderSelection();
         updatePropsPanel();
-        pushHistory();
+        pushHistory('Add gradient stop');
       });
     }
     container.appendChild(row);
@@ -2979,7 +3011,7 @@ function bindNumberProp(id, key){
       applyPropToSelection(o => o[key]=v );
     }
   });
-  $(id).addEventListener('change', () => pushHistory());
+  $(id).addEventListener('change', () => pushHistory('Change properties'));
 }
 bindNumberProp('#prop-x','x');
 bindNumberProp('#prop-y','y');
@@ -3079,7 +3111,7 @@ $('#prop-radius-per-corner-btn').addEventListener('click', ()=>{
     applyPropToSelection(o=>{ o.radii = [r,r,r,r]; });
   }
   updatePropsPanel();
-  pushHistory();
+  pushHistory('Remove gradient stop');
 });
 
 // Per-corner radius inputs: [TL, TR, BR, BL]
@@ -3091,7 +3123,7 @@ function bindCornerRadius(id, idx){
       o.radii[idx] = v;
     });
   });
-  $(id).addEventListener('change', ()=>pushHistory());
+  $(id).addEventListener('change', ()=>pushHistory('Change fill type'));
 }
 bindCornerRadius('#prop-radius-tl', 0);
 bindCornerRadius('#prop-radius-tr', 1);
@@ -3104,7 +3136,7 @@ $('#fill-color').addEventListener('input', e=>{
   $('#fill-fill').style.background = e.target.value;
   $('#fill-swatch').classList.remove('none');
 });
-$('#fill-color').addEventListener('change', ()=>pushHistory());
+$('#fill-color').addEventListener('change', ()=>pushHistory('Change fill color'));
 $('#fill-hex').addEventListener('change', e=>{
   let v = e.target.value.trim();
   if(v==='none' || v===''){ applyPropToSelection(o=>{o.fill='none'; o.gradient=null;}); $('#fill-swatch').classList.add('none'); $('#fill-fill').style.background='transparent'; }
@@ -3115,7 +3147,7 @@ $('#fill-hex').addEventListener('change', e=>{
     $('#fill-fill').style.background = v;
     if(isHex(v)) $('#fill-color').value = v;
   }
-  pushHistory();
+  pushHistory('Change stroke type');
 });
 
 // ---- Fill / stroke type: solid / linear / radial gradient (N stops) ----
@@ -3138,7 +3170,7 @@ $$('#fill-type-toggle button').forEach(btn=>{
       else { o.gradient.type = v; }
     });
     updatePropsPanel();
-    pushHistory();
+    pushHistory('Toggle shadow');
   });
 });
 $$('#stroke-type-toggle button').forEach(btn=>{
@@ -3150,7 +3182,7 @@ $$('#stroke-type-toggle button').forEach(btn=>{
       else { o.strokeGradient.type = v; }
     });
     updatePropsPanel();
-    pushHistory();
+    pushHistory('Toggle blur');
   });
 });
 $('#fill-add-stop').addEventListener('click', ()=>{
@@ -3162,7 +3194,7 @@ $('#fill-add-stop').addEventListener('click', ()=>{
     stops.push({color:'#ffffff', pos: Math.min(100, Math.round(newPos))});
   });
   updatePropsPanel();
-  pushHistory();
+  pushHistory('Flip horizontal');
 });
 $('#stroke-add-stop').addEventListener('click', ()=>{
   applyPropToSelection(o=>{
@@ -3173,18 +3205,18 @@ $('#stroke-add-stop').addEventListener('click', ()=>{
     stops.push({color:'#ffffff', pos: Math.min(100, Math.round(newPos))});
   });
   updatePropsPanel();
-  pushHistory();
+  pushHistory('Flip vertical');
 });
 $('#grad-angle').addEventListener('input', e=>{
   const v = parseFloat(e.target.value)||0;
   applyPropToSelection(o=>{ if(o.gradient) o.gradient.angle = v; });
 });
-$('#grad-angle').addEventListener('change', ()=>pushHistory());
+$('#grad-angle').addEventListener('change', ()=>pushHistory('Change fill angle'));
 $('#stroke-grad-angle').addEventListener('input', e=>{
   const v = parseFloat(e.target.value)||0;
   applyPropToSelection(o=>{ if(o.strokeGradient) o.strokeGradient.angle = v; });
 });
-$('#stroke-grad-angle').addEventListener('change', ()=>pushHistory());
+$('#stroke-grad-angle').addEventListener('change', ()=>pushHistory('Change stroke angle'));
 
 $('#stroke-color').addEventListener('input', e=>{
   applyPropToSelection(o=>{ o.stroke = e.target.value; o.strokeGradient = null; });
@@ -3192,7 +3224,7 @@ $('#stroke-color').addEventListener('input', e=>{
   $('#stroke-fill').style.background = e.target.value;
   $('#stroke-swatch').classList.remove('none');
 });
-$('#stroke-color').addEventListener('change', ()=>pushHistory());
+$('#stroke-color').addEventListener('change', ()=>pushHistory('Change stroke color'));
 $('#stroke-hex').addEventListener('change', e=>{
   let v = e.target.value.trim();
   if(v==='none' || v===''){ applyPropToSelection(o=>{o.stroke='none'; o.strokeGradient=null;}); $('#stroke-swatch').classList.add('none'); $('#stroke-fill').style.background='transparent'; }
@@ -3203,10 +3235,10 @@ $('#stroke-hex').addEventListener('change', e=>{
     $('#stroke-fill').style.background = v;
     if(isHex(v)) $('#stroke-color').value = v;
   }
-  pushHistory();
+  pushHistory('Change stroke width');
 });
-$('#stroke-linecap').addEventListener('change', e=>{ applyPropToSelection(o=>o.strokeLinecap=e.target.value); pushHistory(); });
-$('#stroke-dash').addEventListener('change', e=>{ applyPropToSelection(o=>o.strokeDasharray=e.target.value); pushHistory(); });
+$('#stroke-linecap').addEventListener('change', e=>{ applyPropToSelection(o=>o.strokeLinecap=e.target.value); pushHistory('Change stroke cap'); });
+$('#stroke-dash').addEventListener('change', e=>{ applyPropToSelection(o=>o.strokeDasharray=e.target.value); pushHistory('Change stroke dash'); });
 
 // ---- Effects: drop shadow / blur ----
 $$('#effect-toggle button').forEach(btn=>{
@@ -3218,7 +3250,7 @@ $$('#effect-toggle button').forEach(btn=>{
       else if(v==='blur'){ o.effect = {type:'blur', amount:4}; }
     });
     updatePropsPanel();
-    pushHistory();
+    pushHistory('Change text font');
   });
 });
 function bindEffectNumber(id, key){
@@ -3227,7 +3259,7 @@ function bindEffectNumber(id, key){
     if(isNaN(v)) return;
     applyPropToSelection(o=>{ if(o.effect) o.effect[key]=v; });
   });
-  $(id).addEventListener('change', ()=>pushHistory());
+  $(id).addEventListener('change', ()=>pushHistory('Change text align'));
 }
 bindEffectNumber('#shadow-dx','dx');
 bindEffectNumber('#shadow-dy','dy');
@@ -3236,59 +3268,59 @@ $('#shadow-color').addEventListener('input', e=>{
   applyPropToSelection(o=>{ if(o.effect) o.effect.color = e.target.value; });
   $('#shadow-fill').style.background = e.target.value;
 });
-$('#shadow-color').addEventListener('change', ()=>pushHistory());
+$('#shadow-color').addEventListener('change', ()=>pushHistory('Change shadow color'));
 $('#shadow-opacity').addEventListener('input', e=>{
   const v = e.target.value/100;
   applyPropToSelection(o=>{ if(o.effect) o.effect.opacity = v; });
   $('#shadow-opacity-val').textContent = e.target.value+'%';
 });
-$('#shadow-opacity').addEventListener('change', ()=>pushHistory());
+$('#shadow-opacity').addEventListener('change', ()=>pushHistory('Change shadow opacity'));
 $('#blur-amount').addEventListener('input', e=>{
   const v = parseFloat(e.target.value);
   applyPropToSelection(o=>{ if(o.effect) o.effect.amount = v; });
   $('#blur-amount-val').textContent = v+'px';
 });
-$('#blur-amount').addEventListener('change', ()=>pushHistory());
+$('#blur-amount').addEventListener('change', ()=>pushHistory('Change blur amount'));
 
 $('#fill-opacity').addEventListener('input', e=>{
   const v = e.target.value/100;
   applyPropToSelection(o=>o.fillOpacity=v);
   $('#fill-opacity-val').textContent = e.target.value+'%';
 });
-$('#fill-opacity').addEventListener('change', ()=>pushHistory());
+$('#fill-opacity').addEventListener('change', ()=>pushHistory('Change fill opacity'));
 $('#obj-opacity').addEventListener('input', e=>{
   const v = e.target.value/100;
   applyPropToSelection(o=>o.opacity=v);
   $('#obj-opacity-val').textContent = e.target.value+'%';
 });
-$('#obj-opacity').addEventListener('change', ()=>pushHistory());
+$('#obj-opacity').addEventListener('change', ()=>pushHistory('Change object opacity'));
 
-$('#text-weight').addEventListener('change', e=>{ applyPropToSelection(o=>o.fontWeight=e.target.value); pushHistory(); });
+$('#text-weight').addEventListener('change', e=>{ applyPropToSelection(o=>o.fontWeight=e.target.value); pushHistory('Change text weight'); });
 $('#text-font').addEventListener('change', e=>{
   applyPropToSelection(o=>o.fontFamily=e.target.value);
   $('#font-offline-hint').style.display = SYSTEM_FONT_NAMES.some(f=>e.target.value.includes(f)) ? 'none' : 'block';
-  pushHistory();
+  pushHistory('Change text style');
 });
-$('#text-size').addEventListener('change', ()=>pushHistory());
+$('#text-size').addEventListener('change', ()=>pushHistory('Change text size'));
 $$('#text-align-toggle button').forEach(b=>{
   b.addEventListener('click', ()=>{
     $$('#text-align-toggle button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
     applyPropToSelection(o=>o.textAlign=b.dataset.v);
-    pushHistory();
+    pushHistory('Toggle lock');
   });
 });
 
 // canvas settings
-$('#canvas-w').addEventListener('change', e=>{ state.canvas.w = Math.max(1, parseInt(e.target.value)||800); applyCanvasFrame(); centerStageIfNeeded(); pushHistory(); });
-$('#canvas-h').addEventListener('change', e=>{ state.canvas.h = Math.max(1, parseInt(e.target.value)||600); applyCanvasFrame(); centerStageIfNeeded(); pushHistory(); });
+$('#canvas-w').addEventListener('change', e=>{ state.canvas.w = Math.max(1, parseInt(e.target.value)||800); applyCanvasFrame(); centerStageIfNeeded(); pushHistory('Change canvas width'); });
+$('#canvas-h').addEventListener('change', e=>{ state.canvas.h = Math.max(1, parseInt(e.target.value)||600); applyCanvasFrame(); centerStageIfNeeded(); pushHistory('Change canvas height'); });
 $('#canvas-bg').addEventListener('input', e=>{
   state.canvas.bg = e.target.value;
   pageBg.style.background = e.target.value;
   $('#canvas-bg-swatch .fill').style.background = e.target.value;
   $('#canvas-settings-swatch').setAttribute('fill', e.target.value);
 });
-$('#canvas-bg').addEventListener('change', ()=>pushHistory());
+$('#canvas-bg').addEventListener('change', ()=>pushHistory('Change canvas background'));
 
 function syncCanvasInputs(){
   $('#canvas-w').value = state.canvas.w;
@@ -3743,7 +3775,7 @@ function finishPen(){
     penObj=null;
     setTool('select');
     renderAll();
-    pushHistory();
+    pushHistory('Draw shape');
   }
   clearPenPreview();
   clearPenAnchors();
@@ -3817,7 +3849,7 @@ function createTextAt(pt){
   state.objects.push(o);
   state.selectedIds=[o.id];
   renderAll();
-  pushHistory();
+  pushHistory('Draw path');
   setTimeout(()=> startInlineTextEdit(o), 50);
 }
 
@@ -4105,7 +4137,7 @@ function onCanvasMouseUp(e){
     drag = null;
     clearRotationReadout();
     renderSelection();
-    pushHistory();
+    pushHistory('Move points');
     return;
   }
   if(drag.type==='draw'){
@@ -4130,7 +4162,7 @@ function onCanvasMouseUp(e){
     }
     renderAll();
     setTool('select');
-    pushHistory();
+    pushHistory('Delete points');
   }
   if(drag.type==='move' || drag.type==='resize' || drag.type==='rotate' || drag.type==='rotate-multi'){
     if(drag.type==='move'){
@@ -4160,7 +4192,7 @@ function onCanvasMouseUp(e){
     idsToCheck.forEach(id=>{ const pg = findParentGroup(id); if(pg) touchedGroups.add(pg.id); });
     touchedGroups.forEach(gid=>{ const g = getObj(gid); if(g) recalcGroupBounds(g); });
     if(touchedGroups.size) renderSelection();
-    pushHistory();
+    pushHistory('Insert points');
   }
   if(drag.type==='guide'){
     // dropping a guide back onto its ruler (or off-canvas) removes it
@@ -4681,7 +4713,7 @@ function startInlineTextEdit(o){
     renderObject(o);
     renderSelection();
     updatePropsPanel();
-    pushHistory();
+    pushHistory('Move/resize object');
     div.removeEventListener('blur', finish);
   }
   div.addEventListener('blur', finish);
@@ -4814,12 +4846,77 @@ document.addEventListener('keydown', e=>{
 });
 document.addEventListener('keyup', e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
-    pushHistory();
+    pushHistory('Nudge object');
   }
 });
 
 $('#btn-undo').addEventListener('click', undo);
 $('#btn-redo').addEventListener('click', redo);
+
+function renderHistoryDropdown() {
+  const container = $('#undo-list-container');
+  if(!container) return;
+  
+  if (historyIndex <= 0) {
+    container.innerHTML = '<div style="padding:12px; color:var(--text-2); font-size:12px; text-align:center;">No actions to undo</div>';
+    return;
+  }
+  
+  let html = '<div class="undo-header">Undo Actions</div>';
+  
+  // List from most recent (top) to oldest (bottom)
+  for (let i = historyIndex; i >= 1; i--) {
+    const actionObj = history[i];
+    const name = (actionObj && actionObj.name) || 'Action';
+    html += `<button class="undo-item" data-index="${i}">${name}</button>`;
+  }
+  
+  container.innerHTML = html;
+  
+  const items = container.querySelectorAll('.undo-item');
+  items.forEach((item, idx) => {
+    item.addEventListener('mouseenter', () => {
+      // Highlight this item and all items ABOVE it (more recent actions)
+      for (let j = 0; j <= idx; j++) {
+        items[j].classList.add('hover-active');
+      }
+      for (let j = idx + 1; j < items.length; j++) {
+        items[j].classList.remove('hover-active');
+      }
+    });
+    item.addEventListener('mouseleave', () => {
+      items.forEach(it => it.classList.remove('hover-active'));
+    });
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetIndex = parseInt(item.dataset.index) - 1; 
+      if (targetIndex >= 0 && targetIndex < historyIndex) {
+        historyIndex = targetIndex;
+        restoreFromHistory();
+      }
+      $('#undo-popover').classList.remove('open');
+    });
+  });
+}
+
+$('#btn-undo-dropdown').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const popover = $('#undo-popover');
+  if (popover.classList.contains('open')) {
+    popover.classList.remove('open');
+  } else {
+    $$('.theme-menu').forEach(m => m.classList.remove('open'));
+    renderHistoryDropdown();
+    popover.classList.add('open');
+  }
+});
+
+window.addEventListener('click', (e) => {
+  if(!e.target.closest('#btn-undo-dropdown') && !e.target.closest('#undo-popover')) {
+    const popover = $('#undo-popover');
+    if(popover) popover.classList.remove('open');
+  }
+});
 
 // ================= CONTEXT MENU =================
 
@@ -4850,7 +4947,7 @@ $('#btn-clear')?.addEventListener('click', ()=>{
     state.objects = [];
     state.selectedIds = [];
     renderAll();
-    pushHistory();
+    pushHistory('Clear canvas');
     toast('Canvas cleared');
   }
 });
@@ -4883,7 +4980,7 @@ function importRasterImage(dataUrl, file){
     state.objects.push(o);
     state.selectedIds=[o.id];
     renderAll();
-    pushHistory();
+    pushHistory('Change object name');
     toast('Image imported');
   };
   img.src = dataUrl;
@@ -4934,7 +5031,7 @@ async function importSvgString(str){
     });
     if(count===0) throw new Error('No supported shapes found');
     renderAll();
-    pushHistory();
+    pushHistory('Reorder layers');
     toast(`Imported ${count} object${count>1?'s':''}`);
   }catch(err){
     toast('Could not import this SVG file', true);
@@ -5795,7 +5892,7 @@ function init(){
   applyCanvasFrame();
   syncCanvasInputs();
   renderAll();
-  pushHistory();
+  pushHistory('Import objects');
   updateUndoRedoButtons();
   setTool('select');
   // zoomToFit must run AFTER the browser has laid out the DOM,
