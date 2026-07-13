@@ -3419,17 +3419,23 @@ function onCanvasMouseDown(e){
   }
 
   if(state.tool === 'select'){
-    // Use a generous hit-pad (6 screen px) so thin pen paths and lines are
-    // easily clickable without needing pixel-perfect precision.
-    const hitPad = 6 / state.zoom;
-    const allAtPoint = topLevelObjects().filter(o => o.visible && !o.locked && _isNearObject(pt, o, hitPad));
-    let hitId = allAtPoint.length > 0 ? allAtPoint[allAtPoint.length - 1].id : null;
+    // 1. Native DOM Hit Detection (perfectly respects all nested rotations & transforms)
+    const elements = document.elementsFromPoint(e.clientX, e.clientY);
+    const dataElements = elements.filter(el => el.dataset && el.dataset.id);
+    let hitId = dataElements.length > 0 ? dataElements[0].dataset.id : null;
+
+    // 2. Proximity fallback for thin lines/paths (if user clicks slightly outside)
+    if(!hitId){
+      const hitPad = 6 / state.zoom;
+      hitId = _findNearbyObject(pt, hitPad);
+    }
     
     if(hitId){
-      if(e.altKey && allAtPoint.length > 1){
-        const curIdx = allAtPoint.findIndex(o => o.id === hitId || (findParentGroup(hitId)||{}).id === o.id);
-        const nextIdx = (curIdx + 1) % allAtPoint.length;
-        hitId = allAtPoint[nextIdx].id;
+      if(e.altKey && dataElements.length > 1){
+        const uniqueHits = [...new Set(dataElements.map(el => (findParentGroup(el.dataset.id)||{}).id || el.dataset.id))];
+        const curIdx = uniqueHits.indexOf((findParentGroup(hitId)||{}).id || hitId);
+        const nextIdx = (curIdx + 1) % uniqueHits.length;
+        hitId = uniqueHits[nextIdx];
       } else {
         const parentGroup = findParentGroup(hitId);
         if(parentGroup) hitId = parentGroup.id;
@@ -4225,6 +4231,8 @@ function _ptToSegDist(p, a, b){
   return Math.hypot(p.x-(a.x+t*dx), p.y-(a.y+t*dy));
 }
 function _isNearObject(pt, o, pad){
+  // Warning: this basic math ignores rotation/transforms. It is only used as a fallback for 
+  // clicking thin un-rotated paths or hairlines when Native DOM hit detection misses.
   if(pt.x < o.x-pad || pt.x > o.x+o.w+pad || pt.y < o.y-pad || pt.y > o.y+o.h+pad) return false;
   if(o.type==='line'){
     const pts = o.points||[[0,0],[o.w,o.h]];
@@ -4238,7 +4246,7 @@ function _isNearObject(pt, o, pad){
     }
     return false;
   }
-  return true; // padded bbox sufficient for rects, ellipses, text, images
+  return true; 
 }
 function _findNearbyObject(pt, pad){
   const objs = [...topLevelObjects()].reverse();
