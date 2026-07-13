@@ -1,0 +1,2 @@
+# Ignore temporary test files generated during syntax checks
+test.js

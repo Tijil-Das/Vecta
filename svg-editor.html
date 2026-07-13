@@ -2237,9 +2237,14 @@ function drawSelBoxSVG(o){
       glowShape.setAttribute('transform',`translate(${o.x} ${o.y})`);
     }
   }
-  glowShape.setAttribute('fill', o.locked ? 'rgba(113,118,127,0.18)' : 'rgba(79,178,232,0.18)');
+  if (o.type === 'line' || (o.type === 'path' && !o.closed)) {
+    glowShape.setAttribute('fill', 'none');
+    glowShape.setAttribute('stroke-width', 4/state.zoom);
+  } else {
+    glowShape.setAttribute('fill', o.locked ? 'rgba(113,118,127,0.18)' : 'rgba(79,178,232,0.18)');
+    glowShape.setAttribute('stroke-width', 2/state.zoom);
+  }
   glowShape.setAttribute('stroke', color);
-  glowShape.setAttribute('stroke-width', 2/state.zoom);
   glowShape.style && (glowShape.style.pointerEvents = 'none');
   glowShape.setAttribute('filter','url(#sel-glow)');
   overlay.appendChild(glowShape);
@@ -2263,20 +2268,19 @@ function drawSelBoxSVG(o){
       }
     }
     overlay.appendChild(outline);
-  } else {
-    // Bbox-based shapes (rect, ellipse, text, image, group) — wrap in a rotated
-    // group so the outline visually follows the object's own rotation.
-    const g = document.createElementNS(SVG_NS,'g');
-    g.setAttribute('transform', o.rot ? `rotate(${o.rot} ${cx} ${cy})` : '');
-    const rect = document.createElementNS(SVG_NS,'rect');
-    rect.setAttribute('x',o.x); rect.setAttribute('y',o.y);
-    rect.setAttribute('width',o.w); rect.setAttribute('height',o.h);
-    rect.setAttribute('fill','none'); rect.setAttribute('stroke', color);
-    rect.setAttribute('stroke-width', 1.5/state.zoom);
-    if(o.locked) rect.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
-    g.appendChild(rect);
-    overlay.appendChild(g);
   }
+  
+  // Always render the rectangular bounding box so handles aren't visually floating
+  const g = document.createElementNS(SVG_NS,'g');
+  g.setAttribute('transform', o.rot ? `rotate(${o.rot} ${cx} ${cy})` : '');
+  const rect = document.createElementNS(SVG_NS,'rect');
+  rect.setAttribute('x',o.x); rect.setAttribute('y',o.y);
+  rect.setAttribute('width',o.w); rect.setAttribute('height',o.h);
+  rect.setAttribute('fill','none'); rect.setAttribute('stroke', color);
+  rect.setAttribute('stroke-width', 1/state.zoom);
+  if(o.locked) rect.setAttribute('stroke-dasharray', `${4/state.zoom},${3/state.zoom}`);
+  g.appendChild(rect);
+  overlay.appendChild(g);
   if(!o.locked) addHandles(o.x,o.y,o.w,o.h,o.rot,o.id, o.type);
 }
 
@@ -3781,10 +3785,17 @@ function clearPenPreview(){
 }
 
 function recalcPathBounds(o){
-  // keep points relative to original x,y but recompute w/h for bbox display
+  // recalculate w/h, and shift x,y so all points remain perfectly bounded >= 0
   const xs = o.points.map(p=>p[0]), ys = o.points.map(p=>p[1]);
-  o.w = Math.max(...xs) - Math.min(...xs);
-  o.h = Math.max(...ys) - Math.min(...ys);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  if (minX !== 0 || minY !== 0) {
+    o.x += minX;
+    o.y += minY;
+    o.points = o.points.map(p => [p[0] - minX, p[1] - minY]);
+  }
+  o.w = maxX - minX;
+  o.h = maxY - minY;
 }
 
 function createTextAt(pt){
@@ -4231,18 +4242,39 @@ function _ptToSegDist(p, a, b){
   return Math.hypot(p.x-(a.x+t*dx), p.y-(a.y+t*dy));
 }
 function _isNearObject(pt, o, pad){
-  // Warning: this basic math ignores rotation/transforms. It is only used as a fallback for 
-  // clicking thin un-rotated paths or hairlines when Native DOM hit detection misses.
-  if(pt.x < o.x-pad || pt.x > o.x+o.w+pad || pt.y < o.y-pad || pt.y > o.y+o.h+pad) return false;
+  let testPt = pt;
+  if (o.rot) {
+    const cx = o.x + o.w/2, cy = o.y + o.h/2;
+    const rad = -o.rot * Math.PI / 180;
+    const dx = pt.x - cx, dy = pt.y - cy;
+    testPt = {
+      x: cx + dx*Math.cos(rad) - dy*Math.sin(rad),
+      y: cy + dx*Math.sin(rad) + dy*Math.cos(rad)
+    };
+  }
+
+  // Bounding box fast-fail (now mathematically accurate for rotated objects)
+  if(testPt.x < o.x-pad || testPt.x > o.x+o.w+pad || testPt.y < o.y-pad || testPt.y > o.y+o.h+pad) return false;
+  
   if(o.type==='line'){
     const pts = o.points||[[0,0],[o.w,o.h]];
-    return _ptToSegDist(pt,{x:o.x+pts[0][0],y:o.y+pts[0][1]},{x:o.x+pts[1][0],y:o.y+pts[1][1]})<=pad;
+    return _ptToSegDist(testPt,{x:o.x+pts[0][0],y:o.y+pts[0][1]},{x:o.x+pts[1][0],y:o.y+pts[1][1]})<=pad;
   }
   if(o.type==='path' && o.points && o.points.length>1){
     for(let i=1;i<o.points.length;i++){
       const a={x:o.x+o.points[i-1][0],y:o.y+o.points[i-1][1]};
       const b={x:o.x+o.points[i][0],  y:o.y+o.points[i][1]};
-      if(_ptToSegDist(pt,a,b)<=pad) return true;
+      if(_ptToSegDist(testPt,a,b)<=pad) return true;
+    }
+    return false;
+  }
+  if(o.type==='polygon' && o.points && o.points.length>1){
+    for(let i=1;i<=o.points.length;i++){
+      const p1 = o.points[i-1];
+      const p2 = o.points[i===o.points.length ? 0 : i];
+      const a={x:o.x+p1[0], y:o.y+p1[1]};
+      const b={x:o.x+p2[0], y:o.y+p2[1]};
+      if(_ptToSegDist(testPt,a,b)<=pad) return true;
     }
     return false;
   }
@@ -4408,6 +4440,35 @@ function doResize(pt){
     const sy = orig.h>0 ? nh/orig.h : 1;
     o.fontSize = orig.fontSize * sy;
   }
+
+  // Rotation Compensation:
+  // If the object is rotated, resizing it changes its center (and thus its center of rotation).
+  // This causes the stationary anchor (the corner opposite the dragged handle) to shift in world space.
+  // We compute the anchor's world position before and after the resize, and apply the delta to nx, ny.
+  if (o.rot) {
+    let anchorX = x, anchorY = y;
+    if(handle.includes('w')) anchorX = x + w;
+    else if(handle === 'n' || handle === 's') anchorX = x + w/2;
+    
+    if(handle.includes('n')) anchorY = y + h;
+    else if(handle === 'e' || handle === 'w') anchorY = y + h/2;
+
+    const getWorldPt = (lx, ly, cx, cy, rot) => {
+      const rad = rot * Math.PI / 180;
+      const dx = lx - cx, dy = ly - cy;
+      return {
+        x: cx + dx*Math.cos(rad) - dy*Math.sin(rad),
+        y: cy + dx*Math.sin(rad) + dy*Math.cos(rad)
+      };
+    };
+
+    const oldWorld = getWorldPt(anchorX, anchorY, x + w/2, y + h/2, o.rot);
+    const newWorld = getWorldPt(anchorX, anchorY, nx + nw/2, ny + nh/2, o.rot);
+
+    nx += (oldWorld.x - newWorld.x);
+    ny += (oldWorld.y - newWorld.y);
+  }
+
   o.x=nx; o.y=ny; o.w=nw; o.h=nh;
   renderObject(o);
   renderSelection();
