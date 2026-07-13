@@ -2501,10 +2501,18 @@ function cursorFor(pos, rot){
   // Normalize to 0-180 for bidirectional cursors
   angle = ((angle % 180) + 180) % 180;
   
-  if (angle < 22.5 || angle >= 157.5) return 'ew-resize';
-  if (angle >= 22.5 && angle < 67.5) return 'nwse-resize';
-  if (angle >= 67.5 && angle < 112.5) return 'ns-resize';
-  return 'nesw-resize';
+  // Use native cursors if unrotated or orthogonally rotated
+  if (!rot || rot % 90 === 0) {
+    if (angle < 22.5 || angle >= 157.5) return 'ew-resize';
+    if (angle >= 22.5 && angle < 67.5) return 'nwse-resize';
+    if (angle >= 67.5 && angle < 112.5) return 'ns-resize';
+    return 'nesw-resize';
+  }
+  
+  // Authentic smooth system cursor replica (vector-based shadow to prevent filter haziness)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(${Math.round(angle)} 16 16)"><polygon points="4,16 9,11 9,15 23,15 23,11 28,16 23,21 23,17 9,17 9,21" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="3" stroke-linejoin="miter" transform="translate(0, 1)" shape-rendering="crispEdges"/><polygon points="4,16 9,11 9,15 23,15 23,11 28,16 23,21 23,17 9,17 9,21" fill="black" stroke="white" stroke-width="1" stroke-linejoin="miter" shape-rendering="crispEdges"/></g></svg>`;
+  const encoded = encodeURIComponent(svg).replace(/'/g, "%27").replace(/"/g, "%22");
+  return `url("data:image/svg+xml;charset=utf-8,${encoded}") 16 16, auto`;
 }
 
 // ================= LAYERS PANEL =================
@@ -4277,6 +4285,7 @@ function onCanvasMouseUp(e){
       if(overRuler){ state.guides = state.guides.filter(x=>x.id!==g.id); renderGuides(); }
     }
   }
+  document.body.style.cursor = '';
   drag = null;
 }
 
@@ -4411,6 +4420,7 @@ function _findNearbyObject(pt, pad){
 
 // ---- resize / rotate handles ----
 function startHandleDrag(target, pt, e){
+  document.body.style.cursor = target.style.cursor;
   const handle = target.dataset.handle;
   const ownerId = target.dataset.owner;
   if(handle==='rot'){
