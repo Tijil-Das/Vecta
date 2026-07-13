@@ -2383,8 +2383,22 @@ function addHandles(x,y,w,h,rot,ownerId,shapeType){
 }
 
 function cursorFor(pos, rot){
-  const map = {n:'ns',s:'ns',e:'ew',w:'ew',ne:'nesw',sw:'nesw',nw:'nwse',se:'nwse'};
-  return map[pos]+'-resize';
+  const angleMap = {
+    'e': 0, 'w': 0,
+    'se': 45, 'nw': 45,
+    's': 90, 'n': 90,
+    'sw': 135, 'ne': 135
+  };
+  let angle = angleMap[pos] || 0;
+  if (rot) angle += rot;
+  
+  // Normalize to 0-180 for bidirectional cursors
+  angle = ((angle % 180) + 180) % 180;
+  
+  if (angle < 22.5 || angle >= 157.5) return 'ew-resize';
+  if (angle >= 22.5 && angle < 67.5) return 'nwse-resize';
+  if (angle >= 67.5 && angle < 112.5) return 'ns-resize';
+  return 'nesw-resize';
 }
 
 // ================= LAYERS PANEL =================
