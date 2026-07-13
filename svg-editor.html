@@ -128,6 +128,61 @@ input{font-family:inherit; color:inherit;}
   letter-spacing:0.5px; font-size:10.5px; color:var(--text-2); border-bottom:1px solid var(--line);
   margin-bottom: 4px;
 }
+.split-btn-group {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  position: relative;
+}
+.split-btn-group:hover {
+  background: var(--bg-2);
+  border-color: var(--line);
+}
+.split-btn-left, .split-btn-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  cursor: pointer;
+  height: 100%;
+}
+.split-btn-left {
+  width: 30px;
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+  padding: 0;
+}
+.split-btn-right {
+  width: 16px;
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  border-left: 1px solid transparent;
+  padding: 0;
+}
+.split-btn-group:hover .split-btn-right {
+  border-left-color: var(--line);
+}
+.split-btn-left:hover {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+.split-btn-right:hover {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+.split-btn-left:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.split-btn-left:disabled:hover {
+  background: transparent;
+  color: var(--text-1);
+}
 .theme-swatch{
   width:15px; height:15px; border-radius:50%; flex:0 0 15px;
   /* Solid 2px contrasting border so swatches never camouflage on any background */
@@ -695,12 +750,14 @@ select.input{ font-family:var(--sans); }
     </div>
     <div class="divider"></div>
     <div style="position:relative; display:flex;">
-      <button class="iconbtn" id="btn-undo" title="Undo (Ctrl+Z)" style="border-top-right-radius:0; border-bottom-right-radius:0; padding-right:4px;">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M7 8H14C17 8 19 10 19 13C19 16 17 18 14 18H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <button class="iconbtn" id="btn-undo-dropdown" title="History" style="border-top-left-radius:0; border-bottom-left-radius:0; padding-left:2px; padding-right:2px; width:16px;">
-        <svg viewBox="0 0 24 24" width="10" height="10" fill="none" style="margin-top:2px"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="split-btn-group">
+        <button class="split-btn-left" id="btn-undo" title="Undo (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M7 8H14C17 8 19 10 19 13C19 16 17 18 14 18H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="split-btn-right" id="btn-undo-dropdown" title="History">
+          <svg viewBox="0 0 24 24" width="8" height="8" fill="none"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
       <div id="undo-popover" class="theme-menu" style="width:240px; max-height:350px; overflow-y:auto; padding:4px 0; right:auto; left:0;">
         <div id="undo-list-container"></div>
       </div>
