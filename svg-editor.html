@@ -2498,19 +2498,19 @@ function cursorFor(pos, rot){
   let angle = angleMap[pos] || 0;
   if (rot) angle += rot;
   
-  // Normalize to 0-180 for bidirectional cursors
-  angle = ((angle % 180) + 180) % 180;
+  // Normalize to 0-180 for bidirectional cursors and round to prevent sub-degree hazy anti-aliasing
+  angle = Math.round(((angle % 180) + 180) % 180);
   
-  // Use native cursors if unrotated or orthogonally rotated
-  if (!rot || rot % 90 === 0) {
-    if (angle < 22.5 || angle >= 157.5) return 'ew-resize';
-    if (angle >= 22.5 && angle < 67.5) return 'nwse-resize';
-    if (angle >= 67.5 && angle < 112.5) return 'ns-resize';
-    return 'nesw-resize';
-  }
+
   
-  // Authentic smooth system cursor replica (vector-based shadow to prevent filter haziness)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(${Math.round(angle)} 16 16)"><polygon points="4,16 9,11 9,15 23,15 23,11 28,16 23,21 23,17 9,17 9,21" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="3" stroke-linejoin="miter" transform="translate(0, 1)" shape-rendering="crispEdges"/><polygon points="4,16 9,11 9,15 23,15 23,11 28,16 23,21 23,17 9,17 9,21" fill="black" stroke="white" stroke-width="1" stroke-linejoin="miter" shape-rendering="crispEdges"/></g></svg>`;
+  const isOrthogonal = (angle % 90 === 0);
+  const pts = isOrthogonal 
+    ? "4.5,16.5 9.5,11.5 9.5,15.5 23.5,15.5 23.5,11.5 28.5,16.5 23.5,21.5 23.5,17.5 9.5,17.5 9.5,21.5"
+    : "4,16 9,11 9,15 23,15 23,11 28,16 23,21 23,17 9,17 9,21";
+  const center = isOrthogonal ? "16.5 16.5" : "16 16";
+
+  // Authentic smooth system cursor replica (conditionally aligned for razor-sharp rendering at all angles)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(${angle} ${center})"><polygon points="${pts}" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="3" stroke-linejoin="round" transform="translate(0, 1)"/><polygon points="${pts}" fill="black" stroke="white" stroke-width="1" stroke-linejoin="round"/></g></svg>`;
   const encoded = encodeURIComponent(svg).replace(/'/g, "%27").replace(/"/g, "%22");
   return `url("data:image/svg+xml;charset=utf-8,${encoded}") 16 16, auto`;
 }
