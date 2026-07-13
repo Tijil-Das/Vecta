@@ -5685,7 +5685,7 @@ function renderThemeMenu(){
     btn.className = 'theme-option' + (isActive ? ' active' : '');
     btn.dataset.theme = t.id;
     btn.innerHTML = `<span class="theme-swatch" style="background:${t.color}"></span><span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.name}</span><svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M5 13L9.5 17.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    btn.onclick = (e) => { e.stopPropagation(); applyAccent(t.id); renderThemeMenu(); menu.classList.remove('open'); };
+    btn.onclick = (e) => { e.stopPropagation(); applyAccent(t.id); setActiveThemeId(t.id); renderThemeMenu(); menu.classList.remove('open'); };
     list.appendChild(btn);
   });
   
@@ -5706,6 +5706,7 @@ function renderThemeMenu(){
       if(ev.target.closest('[data-edit]')){ ev.stopPropagation(); openCustomThemeModal(t.id); return; }
       if(ev.target.closest('[data-delete]')){ ev.stopPropagation(); deleteCustomTheme(t.id); return; }
       applyAccent(t.accent);
+      setActiveThemeId('custom-' + t.id);
       menu.classList.remove('open');
     });
     list.appendChild(btn);
@@ -5737,10 +5738,35 @@ async function deleteCustomTheme(id){
   customThemes.splice(idx,1);
   saveCustomThemes();
   // if the deleted theme was active, re-apply current palette
-  const activeHex = localStorage.getItem('vecta-theme-full');
-  if(activeHex==='custom-'+id){
+  const activeId = localStorage.getItem('vecta-theme-full');
+  if(activeId === 'custom-'+id){
     try{ localStorage.removeItem('vecta-theme-full'); }catch(e){}
-    applyPalette(_currentAccentHex, _currentMode);
+    let fallbackId = 'default';
+    try {
+      let hist = JSON.parse(localStorage.getItem('vecta-theme-history') || '[]');
+      hist = hist.filter(x => x !== 'custom-'+id);
+      localStorage.setItem('vecta-theme-history', JSON.stringify(hist));
+      for(const hid of hist) {
+        if(hid.startsWith('custom-')) {
+          if(customThemes.find(x => 'custom-'+x.id === hid)) { fallbackId = hid; break; }
+        } else {
+          fallbackId = hid; break;
+        }
+      }
+    } catch(e){}
+    if (fallbackId.startsWith('custom-')) {
+      const ct = customThemes.find(x => 'custom-'+x.id === fallbackId);
+      if(ct) applyAccent(ct.accent, ct.gridLineDark, ct.gridLineLight);
+    } else {
+      applyAccent(fallbackId);
+    }
+    setActiveThemeId(fallbackId);
+  } else {
+    try {
+      let hist = JSON.parse(localStorage.getItem('vecta-theme-history') || '[]');
+      hist = hist.filter(x => x !== 'custom-'+id);
+      localStorage.setItem('vecta-theme-history', JSON.stringify(hist));
+    } catch(e){}
   }
   renderThemeMenu();
 }
@@ -5764,6 +5790,16 @@ function applyMode(mode){
   _currentGridHex = (mode === 'light') ? _currentGridLight : _currentGridDark;
   applyPalette(_currentAccentHex, mode, _currentGridHex);
   try{ localStorage.setItem('vecta-mode', mode); }catch(e){}
+}
+function setActiveThemeId(id) {
+  try {
+    localStorage.setItem('vecta-theme-full', id);
+    let hist = JSON.parse(localStorage.getItem('vecta-theme-history') || '[]');
+    hist = hist.filter(x => x !== id);
+    hist.unshift(id);
+    if(hist.length > 20) hist.pop();
+    localStorage.setItem('vecta-theme-history', JSON.stringify(hist));
+  } catch(e){}
 }
 function applyAccent(accentHexOrId, gridLineDark, gridLineLight){
   // Support both predefined IDs and raw hex values
@@ -5936,8 +5972,10 @@ if($('#ctm-save')) $('#ctm-save').addEventListener('click',()=>{
   renderThemeMenu();
   const applyId=ctmEditingId||(customThemes[customThemes.length-1].id);
   // apply accent (dark/light is whatever is globally set)
-  const saved=customThemes.find(x=>x.id===applyId);
-  if(saved) applyAccent(saved.accent, saved.gridLineDark, saved.gridLineLight);
+  if(saved) {
+    applyAccent(saved.accent, saved.gridLineDark, saved.gridLineLight);
+    setActiveThemeId('custom-' + saved.id);
+  }
   $('#custom-theme-overlay').classList.remove('open');
 });
 if($('#btn-custom-theme')) $('#btn-custom-theme').addEventListener('click',e=>{ e.stopPropagation(); openCustomThemeModal(null); });
