@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vecta - Premium Linear Spring</title>
+<style>
+  :root {
+    --brand-green: #08FF05;
+    --bg-dark: #0a0a0a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(46, 202, 91, 0.06), transparent 60%),
+      var(--bg-dark);
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  .vecta-wrap {
+    width: 192px;
+    height: 192px;
+  }
+
+  .vecta-icon {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .path {
+    fill: none;
+    stroke: var(--brand-green);
+    stroke-width: 14;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .node {
+    fill: var(--bg-dark);
+    stroke: var(--brand-green);
+    stroke-width: 12;
+    stroke-linecap: round;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+
+  /* circling stroke-draw nodes rotate so the trace has a clear start point */
+  .node-trace {
+    transform: rotate(-90deg);
+  }
+
+  .replay-btn {
+    margin-top: 1.25rem;
+    padding: 10px 24px;
+    background: transparent;
+    color: #666;
+    border: 1px solid #333;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+  }
+  .replay-btn:hover {
+    color: var(--brand-green);
+    border-color: var(--brand-green);
+  }
+</style>
+</head>
+<body>
+  <div id="vecta-wrap" class="vecta-wrap">
+    <svg id="vecta-logo" class="vecta-icon" viewBox="0 0 192 192">
+      <path id="path-left" class="path" d="M 46 46 L 46 46" />
+      <path id="path-right" class="path" d="M 96 146 L 96 146" />
+      <circle id="n1" class="node" cx="46" cy="46" r="14" />
+      <circle id="n2" class="node node-trace" cx="96" cy="146" r="14" />
+      <circle id="n3" class="node" cx="96" cy="146" r="14" />
+    </svg>
+  </div>
+  <button class="replay-btn" onclick="runAnimation()">Replay Animation</button>
+
+  <script>
+    // ---- Right arm travels along the single straight line from the elbow
+    // (96,146) to the resting tip (146,46). "u" is a scalar position along
+    // that line: 0 = at the elbow, 1 = at rest. u can exceed 1 (overshoot
+    // past the tip) or dip below the rest point on the way back
+    // (undershoot) -- but always on that one axis, never sideways.
+    const ELBOW = { x: 96, y: 146 };
+    const REST  = { x: 146, y: 46 };
+
+    function pointAlongArm(u) {
+      return {
+        x: ELBOW.x + (REST.x - ELBOW.x) * u,
+        y: ELBOW.y + (REST.y - ELBOW.y) * u,
+      };
+    }
+
+    // Each stop: [time 0-1, u, scale] -- a decaying 1D spring along the arm:
+    // overshoot past rest, correct back, smaller overshoot, smaller correct, rest.
+    const keyframes = [
+      { t: 0.00, u: 0,    s: 0 },
+      { t: 0.22, u: 0,    s: 1.5 },
+      { t: 0.42, u: 1.35, s: 1.15 },
+      { t: 0.58, u: 0.82, s: 0.95 },
+      { t: 0.72, u: 1.14, s: 1.06 },
+      { t: 0.85, u: 0.94, s: 0.98 },
+      { t: 1.00, u: 1,    s: 1.00 },
+    ];
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    // ease each inter-keyframe segment for a smooth (not linear) glide
+    function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+
+    function sampleSpring(progress) {
+      // find surrounding keyframes
+      let i = 0;
+      while (i < keyframes.length - 2 && progress > keyframes[i + 1].t) i++;
+      const a = keyframes[i];
+      const b = keyframes[i + 1];
+      const span = b.t - a.t || 1;
+      const localT = Math.min(1, Math.max(0, (progress - a.t) / span));
+      const eased = easeInOut(localT);
+      const u = lerp(a.u, b.u, eased);
+      const s = lerp(a.s, b.s, eased);
+      const pt = pointAlongArm(u);
+      return { x: pt.x, y: pt.y, s };
+    }
+
+    function buildRightPath(x, y) {
+      return `M 96 146 L ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }
+
+    const pathLeft = document.getElementById('path-left');
+    const pathRight = document.getElementById('path-right');
+    const n1 = document.getElementById('n1');
+    const n2 = document.getElementById('n2');
+    const n3 = document.getElementById('n3');
+    const wrap = document.getElementById('vecta-wrap');
+
+    const LEFT_ARM_LEN = Math.hypot(96 - 46, 146 - 46); // ~111.8
+
+    // ---- Strict sequence, one step fully finishes before the next starts:
+    // 1) n1 pops in
+    // 2) left arm draws (slower than before)
+    // 3) n2 draws in via circling stroke-trace
+    // 4) right arm springs out (carrying n3 with it)
+    const N1_POP_DELAY = 100;      // ms before n1 starts popping
+    const N1_POP_DURATION = 320;   // ms for n1's pop-settle
+
+    const LEFT_ARM_DELAY = N1_POP_DELAY + N1_POP_DURATION; // starts after n1 settles
+    const LEFT_ARM_DURATION = 620; // ms for left arm stroke-in (slower)
+
+    const N2_POP_DURATION = 340;   // ms for elbow dot circling-trace
+
+    // right-arm spring only starts once the elbow dot has finished its
+    // circling draw -- nothing else is still moving at the elbow point
+    // when the right arm begins to grow out of it
+    const N2_START = LEFT_ARM_DELAY + LEFT_ARM_DURATION * 0.92;
+    const PATH_DELAY = N2_START + N2_POP_DURATION;
+    const DURATION = 1150;   // ms, main spring
+    const WRAP_DURATION = 900;
+
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+    let rafId = null;
+
+    const NODE_R = 14;
+    const CIRC = 2 * Math.PI * NODE_R;
+
+    function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
+
+    // pop easing for n1: overshoot-and-settle scale pop
+    function easeOutBack(t) {
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+
+    function runAnimation() {
+      if (rafId) cancelAnimationFrame(rafId);
+
+      // reset
+      wrap.style.opacity = '0';
+      wrap.style.transform = 'scale(0.92)';
+      pathLeft.setAttribute('d', 'M 46 46 L 46 46');
+      pathLeft.style.strokeDasharray = `${LEFT_ARM_LEN}`;
+      pathLeft.style.strokeDashoffset = `${LEFT_ARM_LEN}`;
+      pathRight.setAttribute('d', buildRightPath(96, 146));
+      pathRight.style.opacity = '0';
+
+      // n1: pop node, starts invisible/scaled-down, no dash trace
+      n1.style.strokeDasharray = '';
+      n1.style.strokeDashoffset = '';
+      n1.style.transform = 'scale(0)';
+      n1.style.opacity = '0';
+
+      // n2: circling stroke-draw node
+      n2.style.strokeDasharray = `${CIRC}`;
+      n2.style.strokeDashoffset = `${CIRC}`;
+
+      // n3: no draw animation -- fully present, pinned behind n2 at the
+      // elbow point, revealed only by translating out from under n2
+      n3.style.strokeDasharray = '';
+      n3.style.strokeDashoffset = '';
+      n3.setAttribute('r', NODE_R);
+      n3.setAttribute('cx', ELBOW.x);
+      n3.setAttribute('cy', ELBOW.y);
+      // n3 stays invisible until n2 has fully finished its own circling
+      // draw -- otherwise n3 (which has no draw animation) sits on top of
+      // n2 from frame 1 and reads as an already-completed bottom vertex.
+      n3.style.opacity = '0';
+
+      const start = performance.now();
+
+      function frame(now) {
+        const elapsed = now - start;
+
+        // wrap fade/scale-in
+        const wrapT = Math.min(1, elapsed / WRAP_DURATION);
+        const wrapEased = 1 - Math.pow(1 - wrapT, 3);
+        wrap.style.opacity = wrapEased.toFixed(3);
+        wrap.style.transform = `scale(${lerp(0.92, 1, wrapEased).toFixed(4)})`;
+
+        // n1 pops in with a scale overshoot-settle -- first in the
+        // sequence, as a pop rather than a trace. Fully settles before
+        // the left arm starts drawing.
+        const n1T = Math.min(1, Math.max(0, (elapsed - N1_POP_DELAY) / N1_POP_DURATION));
+        const n1Scale = easeOutBack(n1T);
+        n1.style.opacity = n1T > 0 ? '1' : '0';
+        n1.style.transform = `scale(${Math.max(0, n1Scale).toFixed(4)})`;
+
+        // left arm draws in via stroke-dashoffset (own path, own geometry --
+        // never touches the right arm's coordinates)
+        const leftArmT = Math.min(1, Math.max(0, (elapsed - LEFT_ARM_DELAY) / LEFT_ARM_DURATION));
+        const leftArmEased = easeOutQuad(leftArmT);
+        const leftArmDrawn = LEFT_ARM_LEN * leftArmEased;
+        pathLeft.setAttribute('d', 'M 46 46 L 96 146');
+        pathLeft.style.strokeDashoffset = `${LEFT_ARM_LEN - leftArmDrawn}`;
+
+        // n2 traces in as an actual circle stroke, starting the instant the
+        // left arm visually reaches the elbow (a touch before its math hits
+        // 100%, since the tip's own ease-out means it visually arrives
+        // slightly early) -- so there's no perceptible stall between the
+        // arm landing and the bottom vertex beginning to draw
+        const n2T = Math.min(1, Math.max(0, (elapsed - N2_START) / N2_POP_DURATION));
+        n2.style.strokeDashoffset = `${CIRC * (1 - easeOutQuad(n2T))}`;
+
+        // right arm: hidden and pinned at the elbow until PATH_DELAY, then
+        // driven entirely by the spring sample -- no dash reveal, no mode
+        // switch, so there's nothing to visually "snap" at the elbow.
+        // n3 has no draw-in of its own: it is already a full circle sitting
+        // behind n2, and simply gets pushed out along the arm by the spring.
+        if (elapsed < PATH_DELAY) {
+          pathRight.style.opacity = '0';
+          n3.style.opacity = '0';
+          n3.setAttribute('cx', ELBOW.x);
+          n3.setAttribute('cy', ELBOW.y);
+          n3.setAttribute('r', NODE_R);
+        } else {
+          pathRight.style.opacity = '1';
+          n3.style.opacity = '1';
+          const springT = Math.min(1, Math.max(0, (elapsed - PATH_DELAY) / DURATION));
+          const p = sampleSpring(springT);
+          pathRight.setAttribute('d', buildRightPath(p.x, p.y));
+          n3.setAttribute('cx', p.x.toFixed(2));
+          n3.setAttribute('cy', p.y.toFixed(2));
+
+          // spring bounce expressed as radius, not a scale() transform, so
+          // it never fights with the dash-trace of the outline
+          const r = Math.max(0.01, NODE_R * p.s);
+          n3.setAttribute('r', r.toFixed(2));
+        }
+
+        if (elapsed < PATH_DELAY + DURATION + 200) {
+          rafId = requestAnimationFrame(frame);
+        }
+      }
+
+      rafId = requestAnimationFrame(frame);
+    }
+
+    runAnimation();
+  </script>
+</body>
+</html>
